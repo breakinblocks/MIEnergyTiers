@@ -5,6 +5,7 @@ import com.breakinblocks.mienergytiers.MIEnergyTiers;
 import com.breakinblocks.mienergytiers.power.HardPowerError;
 import com.breakinblocks.mienergytiers.power.HardPowerState;
 import io.netty.buffer.ByteBuf;
+import java.util.function.BooleanSupplier;
 import java.util.function.Supplier;
 import net.minecraft.network.codec.ByteBufCodecs;
 import net.minecraft.network.codec.StreamCodec;
@@ -16,11 +17,18 @@ public final class HardPowerGuiComponent implements GuiComponentServer<HardPower
             Params.STREAM_CODEC, Data.STREAM_CODEC);
 
     private final Supplier<HardPowerState> state;
+    private final BooleanSupplier activeRecipe;
     private final Params params;
 
     public HardPowerGuiComponent(Supplier<HardPowerState> state, int renderX, int renderY) {
+        this(state, () -> true, renderX, renderY, false);
+    }
+
+    public HardPowerGuiComponent(Supplier<HardPowerState> state, BooleanSupplier activeRecipe,
+            int renderX, int renderY, boolean compact) {
         this.state = state;
-        this.params = new Params(renderX, renderY);
+        this.activeRecipe = activeRecipe;
+        this.params = new Params(renderX, renderY, compact);
     }
 
     @Override public Params getParams() { return params; }
@@ -28,7 +36,7 @@ public final class HardPowerGuiComponent implements GuiComponentServer<HardPower
     @Override
     public Data extractData() {
         HardPowerState value = state.get();
-        return new Data(value.requestedEuPerTick(), value.availableEuPerTick(),
+        return new Data(value.requestedEuPerTick(), value.availableEuPerTick(), activeRecipe.getAsBoolean(),
                 value.recipeTier() == null ? "" : value.recipeTier().name,
                 value.inputTier() == null ? "" : value.inputTier().name,
                 value.error());
@@ -36,26 +44,30 @@ public final class HardPowerGuiComponent implements GuiComponentServer<HardPower
 
     @Override public Type<Params, Data> getType() { return TYPE; }
 
-    public record Params(int renderX, int renderY) {
+    public record Params(int renderX, int renderY, boolean compact) {
         public static final StreamCodec<ByteBuf, Params> STREAM_CODEC = new StreamCodec<>() {
             @Override
             public Params decode(ByteBuf buffer) {
-                return new Params(ByteBufCodecs.VAR_INT.decode(buffer), ByteBufCodecs.VAR_INT.decode(buffer));
+                return new Params(ByteBufCodecs.VAR_INT.decode(buffer), ByteBufCodecs.VAR_INT.decode(buffer),
+                        ByteBufCodecs.BOOL.decode(buffer));
             }
 
             @Override
             public void encode(ByteBuf buffer, Params value) {
                 ByteBufCodecs.VAR_INT.encode(buffer, value.renderX);
                 ByteBufCodecs.VAR_INT.encode(buffer, value.renderY);
+                ByteBufCodecs.BOOL.encode(buffer, value.compact);
             }
         };
     }
 
-    public record Data(long requested, long available, String recipeTier, String inputTier, HardPowerError error) {
+    public record Data(long requested, long available, boolean activeRecipe,
+            String recipeTier, String inputTier, HardPowerError error) {
         public static final StreamCodec<ByteBuf, Data> STREAM_CODEC = new StreamCodec<>() {
             @Override
             public Data decode(ByteBuf buffer) {
                 return new Data(ByteBufCodecs.VAR_LONG.decode(buffer), ByteBufCodecs.VAR_LONG.decode(buffer),
+                        ByteBufCodecs.BOOL.decode(buffer),
                         ByteBufCodecs.STRING_UTF8.decode(buffer), ByteBufCodecs.STRING_UTF8.decode(buffer),
                         HardPowerError.values()[ByteBufCodecs.VAR_INT.decode(buffer)]);
             }
@@ -64,6 +76,7 @@ public final class HardPowerGuiComponent implements GuiComponentServer<HardPower
             public void encode(ByteBuf buffer, Data value) {
                 ByteBufCodecs.VAR_LONG.encode(buffer, value.requested);
                 ByteBufCodecs.VAR_LONG.encode(buffer, value.available);
+                ByteBufCodecs.BOOL.encode(buffer, value.activeRecipe);
                 ByteBufCodecs.STRING_UTF8.encode(buffer, value.recipeTier);
                 ByteBufCodecs.STRING_UTF8.encode(buffer, value.inputTier);
                 ByteBufCodecs.VAR_INT.encode(buffer, value.error.ordinal());

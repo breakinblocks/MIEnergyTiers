@@ -25,8 +25,14 @@ public final class HardPowerGuiClient extends GuiComponentClient<HardPowerGuiCom
     private final class Renderer implements ClientComponentRenderer {
         @Override
         public void renderBackground(GuiGraphics graphics, int left, int top) {
-            EnergyBarClient.Renderer.renderEnergy(graphics, left + params.renderX(), top + params.renderY(),
-                    data.error() == HardPowerError.NONE ? 1.0F : 0.0F);
+            float scale = params.compact() ? 0.75F : 1.0F;
+            boolean hasEnoughPower = data.activeRecipe() && data.requested() > 0
+                    && data.available() >= data.requested() && data.error() == HardPowerError.NONE;
+            graphics.pose().pushPose();
+            graphics.pose().translate(left + params.renderX(), top + params.renderY(), 0);
+            graphics.pose().scale(scale, scale, 1.0F);
+            EnergyBarClient.Renderer.renderEnergy(graphics, 0, 0, hasEnoughPower ? 1.0F : 0.0F);
+            graphics.pose().popPose();
         }
 
         @Override
@@ -34,8 +40,10 @@ public final class HardPowerGuiClient extends GuiComponentClient<HardPowerGuiCom
                 int left, int top, int cursorX, int cursorY) {
             int x = left + params.renderX();
             int y = top + params.renderY();
-            if (data.error() == HardPowerError.NONE || cursorX < x || cursorX >= x + 13
-                    || cursorY < y || cursorY >= y + 18) return false;
+            int width = params.compact() ? 10 : 13;
+            int height = params.compact() ? 14 : 18;
+            if (data.error() == HardPowerError.NONE || cursorX < x || cursorX >= x + width
+                    || cursorY < y || cursorY >= y + height) return false;
             Component line = switch (data.error()) {
                 case INSUFFICIENT_INSTANTANEOUS_POWER -> Component.translatable(
                         "mi_energy_tiers.power.insufficient", data.available(), data.requested());

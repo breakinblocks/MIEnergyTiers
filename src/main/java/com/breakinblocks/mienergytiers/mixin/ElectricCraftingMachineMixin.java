@@ -42,7 +42,8 @@ abstract class ElectricCraftingMachineMixin implements HardPowerStateHolder, Rec
         int renderY = energyBar == null ? 65 : energyBar.params.renderY();
         if (energyBar != null) machine.guiComponents.unregister(energyBar);
         ((MachineBlockEntityAccessor) this).miEnergyTiers$registerGuiComponent(
-                new HardPowerGuiComponent(() -> miEnergyTiers$powerState, renderX, renderY));
+                new HardPowerGuiComponent(() -> miEnergyTiers$powerState,
+                        machine.getCrafterComponent()::hasActiveRecipe, renderX, renderY, false));
     }
 
     @Override

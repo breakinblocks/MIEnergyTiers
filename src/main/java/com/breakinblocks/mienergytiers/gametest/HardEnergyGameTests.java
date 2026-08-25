@@ -10,6 +10,7 @@ import com.breakinblocks.mienergytiers.energy.TransferEndpoint;
 import com.breakinblocks.mienergytiers.config.HardEnergyConfig;
 import com.breakinblocks.mienergytiers.gui.HardPowerGuiComponent;
 import com.breakinblocks.mienergytiers.overload.OverloadManager;
+import com.breakinblocks.mienergytiers.power.HardPowerState;
 import com.breakinblocks.mienergytiers.power.InstantaneousPowerBudget;
 import com.breakinblocks.mienergytiers.power.InstantaneousPowerTracker;
 import com.breakinblocks.mienergytiers.power.NetworkPowerPolicy;
@@ -68,6 +69,14 @@ public final class HardEnergyGameTests {
             check(budget.available(0) == 0 && budget.received(0) == 32,
                     "input throughput disappeared after machine consumption");
             check(budget.received(2) == 0, "stale input throughput did not expire");
+        }));
+        tests.add(test("idle_power_indicator_is_inactive", helper -> {
+            HardPowerState state = new HardPowerState();
+            state.clear(128, 128, CableTier.MV, CableTier.MV);
+            HardPowerGuiComponent indicator = new HardPowerGuiComponent(
+                    () -> state, () -> false, 161, 4, true);
+            check(!indicator.extractData().activeRecipe(), "idle machine was shown as ready to process");
+            check(indicator.getParams().compact(), "multiblock power indicator was not compact");
         }));
         tests.add(test("progress_resumes_after_full_power", helper -> {
             Ledger ledger = new Ledger(512, 256, 1280);

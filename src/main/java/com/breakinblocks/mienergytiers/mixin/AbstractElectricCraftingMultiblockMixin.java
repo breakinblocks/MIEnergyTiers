@@ -45,8 +45,11 @@ abstract class AbstractElectricCraftingMultiblockMixin implements HardPowerState
     private void miEnergyTiers$registerPowerGui(CallbackInfo ci) {
         // Multiblock status panels contain variable-width text, so keep the power lamp in the
         // otherwise unused top-right corner of the title bar instead of overlaying panel content.
+        AbstractElectricCraftingMultiblockBlockEntity machine =
+                (AbstractElectricCraftingMultiblockBlockEntity) (Object) this;
         ((MachineBlockEntityAccessor) this).miEnergyTiers$registerGuiComponent(
-                new HardPowerGuiComponent(() -> miEnergyTiers$powerState, 157, 4));
+                new HardPowerGuiComponent(() -> miEnergyTiers$powerState,
+                        machine.getCrafterComponent()::hasActiveRecipe, 161, 4, true));
     }
 
     @Inject(method = "onRematch", at = @At("TAIL"))
