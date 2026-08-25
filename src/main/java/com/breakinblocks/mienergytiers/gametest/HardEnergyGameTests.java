@@ -12,6 +12,7 @@ import com.breakinblocks.mienergytiers.overload.OverloadManager;
 import com.breakinblocks.mienergytiers.power.InstantaneousPowerBudget;
 import com.breakinblocks.mienergytiers.power.InstantaneousPowerTracker;
 import com.breakinblocks.mienergytiers.power.NetworkPowerPolicy;
+import com.breakinblocks.mienergytiers.power.UnderpowerPolicy;
 import aztech.modern_industrialization.machines.components.EnergyComponent;
 import aztech.modern_industrialization.util.Simulation;
 import net.minecraft.core.BlockPos;
@@ -260,6 +261,61 @@ public final class HardEnergyGameTests {
                     machine.getCrafterComponent().getProgress() > 0,
                     "full machine buffer deadlocked despite connected LV generation"))
                     .thenSucceed();
+        }));
+        tests.add(asyncTest("underpower_decay_modes_retain_or_waste_inputs", helper -> {
+            BlockPos generatorPos = new BlockPos(0, 1, 0);
+            BlockPos cablePos = new BlockPos(1, 1, 0);
+            BlockPos machinePos = new BlockPos(2, 1, 0);
+            helper.setBlock(generatorPos, BuiltInRegistries.BLOCK.get(MI.id("lv_diesel_generator")));
+            helper.setBlock(machinePos, BuiltInRegistries.BLOCK.get(MI.id("electrolyzer")));
+            GeneratorMachineBlockEntity generator = helper.getBlockEntity(generatorPos);
+            ElectricCraftingMachineBlockEntity machine = helper.getBlockEntity(machinePos);
+            generator.orientation.outputDirection = Direction.EAST;
+            ItemStack salt = new ItemStack(BuiltInRegistries.ITEM.get(MI.id("salt_dust")), 2);
+            check(machine.getInventory().itemStorage.itemHandler.insertItem(0, salt, false).isEmpty(),
+                    "could not insert decay-test recipe input");
+
+            PipeNetworkType cableType = PipeNetworkType.get(MI.id("copper_cable"));
+            helper.setBlock(cablePos, MIPipes.BLOCK_PIPE.get());
+            PipeBlockEntity cable = helper.getBlockEntity(cablePos);
+            cable.addPipe(cableType, MIPipes.INSTANCE.getPipeItem(cableType).defaultData);
+            helper.getLevel().blockUpdated(helper.absolutePos(cablePos), Blocks.AIR);
+            var player = helper.makeMockPlayer(GameType.SURVIVAL);
+            cable.addConnection(player, cableType, Direction.WEST);
+            cable.addConnection(player, cableType, Direction.EAST);
+            try (Transaction transaction = Transaction.openRoot()) {
+                generator.getInventory().fluidStorage.insert(MIFluids.BIODIESEL.variant(), 1000, transaction);
+                transaction.commit();
+            }
+
+            UnderpowerPolicy previous = HardEnergyConfig.UNDERPOWER_POLICY.get();
+            HardEnergyConfig.UNDERPOWER_POLICY.set(UnderpowerPolicy.DECAY_ONLY);
+            float[] poweredProgress = new float[1];
+            helper.startSequence().thenIdle(8).thenExecute(() -> {
+                check(machine.getCrafterComponent().hasActiveRecipe(), "decay-test recipe never started");
+                poweredProgress[0] = machine.getCrafterComponent().getProgress();
+                check(poweredProgress[0] > 0, "decay-test recipe gained no powered progress");
+                helper.setBlock(cablePos, Blocks.AIR);
+            }).thenIdle(4).thenExecute(() -> check(
+                    !machine.getCrafterComponent().hasActiveRecipe()
+                            || machine.getCrafterComponent().getProgress() < poweredProgress[0],
+                    "underpowered recipe did not move backwards; progress="
+                            + machine.getCrafterComponent().getProgress() + ", before=" + poweredProgress[0]))
+                    .thenIdle(12).thenExecute(() -> {
+                        boolean retained = machine.getCrafterComponent().hasActiveRecipe();
+                        boolean atZero = machine.getCrafterComponent().getProgress() == 0;
+                        boolean inputWasLost = machine.getInventory().itemStorage.itemHandler.getStackInSlot(0).isEmpty();
+                        check(retained, "DECAY_ONLY canceled the active recipe at zero progress");
+                        check(atZero, "DECAY_ONLY did not stop at zero progress");
+                        check(inputWasLost, "active recipe unexpectedly returned its already-consumed input");
+                        HardEnergyConfig.UNDERPOWER_POLICY.set(UnderpowerPolicy.DECAY_AND_WASTE_INPUTS);
+                    }).thenIdle(1).thenExecute(() -> {
+                        boolean canceled = !machine.getCrafterComponent().hasActiveRecipe();
+                        boolean inputWasLost = machine.getInventory().itemStorage.itemHandler.getStackInSlot(0).isEmpty();
+                        HardEnergyConfig.UNDERPOWER_POLICY.set(previous);
+                        check(canceled, "DECAY_AND_WASTE_INPUTS did not cancel a zero-progress craft");
+                        check(inputWasLost, "DECAY_AND_WASTE_INPUTS refunded its consumed input");
+                    }).thenSucceed();
         }));
         tests.add(test("save_reload_preserves_accounting", helper -> {
             Ledger original = new Ledger(512, 384, 1280);

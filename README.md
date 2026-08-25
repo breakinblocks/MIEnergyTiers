@@ -13,6 +13,11 @@ Build and verify with:
 
 Configuration is written to `serverconfig/mi_energy_tiers-server.toml` in each world.
 
+Set `strictEnergy.underpowerPolicy` to `PRESERVE_PROGRESS` (the default) to pause an underpowered
+recipe, `DECAY_ONLY` to reverse it to zero while retaining the active craft and its consumed inputs,
+or `DECAY_AND_WASTE_INPUTS` to reverse it by one processing tick per underpowered tick and cancel it
+at zero without refunding its consumed inputs. A `DECAY_ONLY` craft resumes when full power returns.
+
 Set `strictEnergy.overloadPolicy` to `REJECT` (the default) for safe transfer cancellation, or
 `DESTRUCTIVE` to cancel the transfer and defer smoke, explosion sound, and cable/endpoint damage
 until after MI's network iteration. Restart the world after editing its server config.
