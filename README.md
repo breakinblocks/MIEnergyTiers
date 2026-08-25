@@ -22,8 +22,8 @@ Set `strictEnergy.overloadPolicy` to `REJECT` (the default) for safe transfer ca
 `DESTRUCTIVE` to cancel the transfer and defer smoke, explosion sound, and cable/endpoint damage
 until after MI's network iteration. Restart the world after editing its server config.
 
-JEI is included in the development client runtime for recipe inspection. Launch it with
-`.\gradlew.bat runClient`; JEI is not bundled into or required by the release jar.
+JEI and Jade are included in the development client runtime for recipe and machine inspection.
+Launch it with `.\gradlew.bat runClient`; neither mod is bundled into or required by the release jar.
 
 Multiblock energy input hatches accept up to two amps each. A recipe may use a native-tier hatch,
 or aggregate up to four hatches from the immediately lower voltage tier. This allows either two LV
