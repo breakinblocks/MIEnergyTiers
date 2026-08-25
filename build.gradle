@@ -1,0 +1,77 @@
+plugins {
+    id 'java-library'
+    id 'net.neoforged.moddev' version '2.0.112'
+}
+
+version = project.mod_version
+group = project.mod_group
+
+base { archivesName = project.mod_id }
+
+jar {
+    manifest.attributes('Implementation-Version': project.mod_version)
+}
+
+java {
+    toolchain.languageVersion = JavaLanguageVersion.of(21)
+    withSourcesJar()
+}
+
+sourceSets {
+    dev
+}
+
+repositories {
+    maven {
+        url = 'https://modmaven.dev'
+        content {
+            includeGroup 'aztech'
+            includeGroup 'dev.technici4n'
+            includeGroup 'mezz.jei'
+            includeGroup 'org.appliedenergistics'
+        }
+    }
+}
+
+configurations {
+    localRuntimeOnly
+    runtimeClasspath.extendsFrom localRuntimeOnly
+}
+
+neoForge {
+    version = project.neo_version
+
+    mods {
+        mi_energy_tiers {
+            sourceSet sourceSets.main
+            sourceSet sourceSets.dev
+        }
+    }
+
+    runs {
+        configureEach { loadedMods = [mods.mi_energy_tiers] }
+        client { client() }
+        server { server() }
+        gameTestServer {
+            type = 'gameTestServer'
+            gameDirectory = project.file('build/gametest')
+            systemProperty 'forge.enabledGameTestNamespaces', project.mod_id
+        }
+    }
+}
+
+dependencies {
+    implementation "aztech:Modern-Industrialization:${project.mi_version}"
+    implementation "dev.technici4n:GrandPower:${project.grandpower_version}"
+    compileOnly "mezz.jei:jei-1.21.1-neoforge-api:${project.jei_version}"
+    localRuntimeOnly "mezz.jei:jei-1.21.1-neoforge:${project.jei_version}"
+}
+
+tasks.withType(ProcessResources).configureEach {
+    def replacements = [mod_version: project.mod_version, neo_version: project.neo_version,
+                        mi_version: project.mi_version, grandpower_version: project.grandpower_version]
+    inputs.properties replacements
+    filesMatching('META-INF/neoforge.mods.toml') { expand replacements }
+}
+
+tasks.withType(JavaCompile).configureEach { options.encoding = 'UTF-8' }

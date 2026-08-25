@@ -1,0 +1,13 @@
+{
+  "type": "modern_industrialization:electrolyzer",
+  "eu": 128,
+  "duration": 200,
+  "item_inputs": {
+    "item": "minecraft:yellow_wool",
+    "amount": 1
+  },
+  "item_outputs": {
+    "item": "minecraft:yellow_dye",
+    "amount": 1
+  }
+}

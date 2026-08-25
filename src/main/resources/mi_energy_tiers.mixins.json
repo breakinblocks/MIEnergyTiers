@@ -1,0 +1,20 @@
+{
+  "required": true,
+  "minVersion": "0.8.7",
+  "package": "com.breakinblocks.mienergytiers.mixin",
+  "compatibilityLevel": "JAVA_21",
+  "mixins": [
+    "AbstractElectricCraftingMultiblockMixin",
+    "CrafterComponentMixin",
+    "ElectricCraftingMachineMixin",
+    "ElectricityNetworkMixin",
+    "ElectricityNetworkNodeMixin",
+    "EnergyHelperMixin",
+    "EnergyComponentMixin",
+    "MachineBlockEntityAccessor",
+    "WrappedExternalStorageMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}

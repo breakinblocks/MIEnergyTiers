@@ -1,0 +1,33 @@
+package com.breakinblocks.mienergytiers.power;
+
+import aztech.modern_industrialization.api.energy.CableTier;
+import aztech.modern_industrialization.machines.components.EnergyComponent;
+import java.util.Map;
+import java.util.WeakHashMap;
+import org.jspecify.annotations.Nullable;
+
+public final class InstantaneousPowerTracker {
+    private static final Map<EnergyComponent, InstantaneousPowerBudget> BUDGETS = new WeakHashMap<>();
+
+    public static synchronized void receive(EnergyComponent component, long tick, long amount, @Nullable CableTier tier) {
+        budget(component).receive(tick, amount, tier);
+    }
+
+    public static synchronized long available(EnergyComponent component, long tick) {
+        return budget(component).available(tick);
+    }
+
+    public static synchronized @Nullable CableTier inputTier(EnergyComponent component, long tick) {
+        return budget(component).inputTier(tick);
+    }
+
+    public static synchronized boolean spend(EnergyComponent component, long tick, long amount) {
+        return budget(component).spend(tick, amount);
+    }
+
+    private static InstantaneousPowerBudget budget(EnergyComponent component) {
+        return BUDGETS.computeIfAbsent(component, ignored -> new InstantaneousPowerBudget());
+    }
+
+    private InstantaneousPowerTracker() {}
+}
