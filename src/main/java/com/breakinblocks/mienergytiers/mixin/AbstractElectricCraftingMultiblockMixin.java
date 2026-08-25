@@ -66,7 +66,7 @@ abstract class AbstractElectricCraftingMultiblockMixin implements HardPowerState
     public boolean miEnergyTiers$isVoltageAllowed(MachineRecipe recipe) {
         CableTier required = TierUtil.forEu(recipe.eu);
         miEnergyTiers$requiredTier = required;
-        CableTier route = miEnergyTiers$routeTier(required);
+        TierUtil.HatchRoute route = miEnergyTiers$route(required);
         if (route == null) {
             miEnergyTiers$powerState.update(recipe.eu, 0, required, miEnergyTiers$highestTier(),
                     HardPowerError.INVALID_HATCH_TIER);
@@ -81,7 +81,7 @@ abstract class AbstractElectricCraftingMultiblockMixin implements HardPowerState
         long gameTick = ((AbstractElectricCraftingMultiblockBlockEntity) (Object) this).getLevel().getGameTime();
         CableTier required = TierUtil.forEu(requested);
         if (required.compareTo(miEnergyTiers$requiredTier) > 0) miEnergyTiers$requiredTier = required;
-        CableTier route = miEnergyTiers$routeTier(miEnergyTiers$requiredTier);
+        TierUtil.HatchRoute route = miEnergyTiers$route(miEnergyTiers$requiredTier);
         if (route == null) {
             if (simulation == Simulation.ACT) {
                 miEnergyTiers$powerState.update(requested, 0, miEnergyTiers$requiredTier,
@@ -91,19 +91,16 @@ abstract class AbstractElectricCraftingMultiblockMixin implements HardPowerState
             return;
         }
 
+        List<TieredEnergyInput> routedInputs = miEnergyTiers$routedInputs(route, gameTick);
         long available = 0;
-        for (TieredEnergyInput input : miEnergyTiers$tieredInputs) {
-            if (input.tier() == route) {
-                long componentAvailable = Math.min(
-                        input.energy().consumeEu(requested - available, Simulation.SIMULATE),
-                        InstantaneousPowerTracker.available(input.energy(), gameTick));
-                available += Math.min(requested - available, componentAvailable);
-                if (available == requested) break;
-            }
+        for (TieredEnergyInput input : routedInputs) {
+            long componentAvailable = miEnergyTiers$availableFromHatch(input, requested - available, gameTick);
+            available += Math.min(requested - available, componentAvailable);
+            if (available == requested) break;
         }
         if (available != requested) {
             if (simulation == Simulation.ACT) {
-                miEnergyTiers$powerState.update(requested, available, miEnergyTiers$requiredTier, route,
+                miEnergyTiers$powerState.update(requested, available, miEnergyTiers$requiredTier, route.inputTier(),
                         HardPowerError.INSUFFICIENT_INSTANTANEOUS_POWER);
             }
             cir.setReturnValue(0L);
@@ -112,29 +109,43 @@ abstract class AbstractElectricCraftingMultiblockMixin implements HardPowerState
 
         if (simulation == Simulation.ACT) {
             long consumed = 0;
-            for (TieredEnergyInput input : miEnergyTiers$tieredInputs) {
-                if (input.tier() == route) {
-                    long componentDraw = Math.min(requested - consumed,
-                            Math.min(input.energy().consumeEu(requested - consumed, Simulation.SIMULATE),
-                                    InstantaneousPowerTracker.available(input.energy(), gameTick)));
-                    if (componentDraw > 0 && !InstantaneousPowerTracker.spend(input.energy(), gameTick, componentDraw)) {
-                        throw new IllegalStateException("Instantaneous MI hatch budget changed between simulation and commit");
-                    }
-                    consumed += input.energy().consumeEu(componentDraw, Simulation.ACT);
-                    if (consumed == requested) break;
+            for (TieredEnergyInput input : routedInputs) {
+                long componentDraw = miEnergyTiers$availableFromHatch(input, requested - consumed, gameTick);
+                if (componentDraw > 0 && !InstantaneousPowerTracker.spend(input.energy(), gameTick, componentDraw)) {
+                    throw new IllegalStateException("Instantaneous MI hatch budget changed between simulation and commit");
                 }
+                consumed += input.energy().consumeEu(componentDraw, Simulation.ACT);
+                if (consumed == requested) break;
             }
             if (consumed != requested) {
                 throw new IllegalStateException("MI hatch energy changed between atomic simulation and commit");
             }
-            miEnergyTiers$powerState.clear(requested, requested, miEnergyTiers$requiredTier, route);
+            miEnergyTiers$powerState.clear(requested, requested, miEnergyTiers$requiredTier, route.inputTier());
         }
         cir.setReturnValue(requested);
     }
 
     @Unique
-    private CableTier miEnergyTiers$routeTier(CableTier required) {
-        return TierUtil.routeTier(miEnergyTiers$tieredInputs.stream().map(TieredEnergyInput::tier).toList(), required);
+    private TierUtil.HatchRoute miEnergyTiers$route(CableTier required) {
+        return TierUtil.hatchRoute(miEnergyTiers$tieredInputs.stream().map(TieredEnergyInput::tier).toList(), required);
+    }
+
+    @Unique
+    private List<TieredEnergyInput> miEnergyTiers$routedInputs(TierUtil.HatchRoute route, long gameTick) {
+        List<TieredEnergyInput> routed = miEnergyTiers$tieredInputs.stream()
+                .filter(input -> input.tier() == route.inputTier())
+                .sorted(Comparator.comparingLong((TieredEnergyInput input) ->
+                        miEnergyTiers$availableFromHatch(input, Long.MAX_VALUE, gameTick)).reversed())
+                .toList();
+        return routed.size() <= route.maxHatches() ? routed : routed.subList(0, route.maxHatches());
+    }
+
+    @Unique
+    private long miEnergyTiers$availableFromHatch(TieredEnergyInput input, long requested, long gameTick) {
+        long hatchLimit = TierUtil.maxHatchEuPerTick(input.tier());
+        return Math.min(requested, Math.min(hatchLimit, Math.min(
+                input.energy().consumeEu(Math.min(requested, hatchLimit), Simulation.SIMULATE),
+                InstantaneousPowerTracker.available(input.energy(), gameTick))));
     }
 
     @Unique

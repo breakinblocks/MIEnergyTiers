@@ -1,6 +1,6 @@
 {
   "mi_energy_tiers.power.insufficient": "Insufficient instantaneous power: %s / %s EU/t",
   "mi_energy_tiers.power.wrong_tier": "Recipe requires %s; machine accepts %s",
-  "mi_energy_tiers.power.invalid_hatch": "No energy input hatch provides the required voltage",
+  "mi_energy_tiers.power.invalid_hatch": "Requires a matching energy hatch or two hatches one voltage tier lower",
   "mi_energy_tiers.power.overvoltage": "Overvoltage rejected"
 }

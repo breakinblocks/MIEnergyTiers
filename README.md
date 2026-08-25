@@ -24,3 +24,7 @@ until after MI's network iteration. Restart the world after editing its server c
 
 JEI is included in the development client runtime for recipe inspection. Launch it with
 `.\gradlew.bat runClient`; JEI is not bundled into or required by the release jar.
+
+Multiblock energy input hatches accept up to two amps each. A recipe may use a native-tier hatch,
+or exactly two hatches from the immediately lower voltage tier (for example, two LV hatches for an
+MV recipe). Promotion does not cascade across multiple tiers.
