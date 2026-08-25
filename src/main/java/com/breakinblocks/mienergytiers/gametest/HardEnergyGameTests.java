@@ -82,7 +82,7 @@ public final class HardEnergyGameTests {
                     "one LV hatch created MV voltage");
             TierUtil.HatchRoute route = TierUtil.hatchRoute(List.of(CableTier.LV, CableTier.LV), CableTier.MV);
             check(route != null && route.inputTier() == CableTier.LV && route.effectiveTier() == CableTier.MV
-                            && route.maxHatches() == 2,
+                            && route.maxHatches() == 4,
                     "two LV hatches did not create one MV route");
             check(TierUtil.hatchRoute(List.of(CableTier.LV, CableTier.LV, CableTier.LV, CableTier.LV), CableTier.HV) == null,
                     "LV hatches recursively promoted to HV");
@@ -90,6 +90,8 @@ public final class HardEnergyGameTests {
                     "LV hatch did not enforce its two-amp limit");
             check(TierUtil.maxHatchEuPerTick(CableTier.LV) * 2 == CableTier.MV.getEu(),
                     "two two-amp LV hatches did not provide one MV recipe amp");
+            check(CableTier.LV.getEu() * route.maxHatches() == CableTier.MV.getEu(),
+                    "four one-amp LV hatch inputs did not provide one MV recipe amp");
         }));
         tests.add(test("same_tier_hatches_aggregate", helper -> {
             Ledger first = new Ledger(80, 0, 1000);

@@ -24,8 +24,9 @@ public final class TierUtil {
     }
 
     /**
-     * Find a multiblock hatch route. A native route is preferred. Otherwise, exactly two hatches
-     * from the tier immediately below the requested voltage can promote to that voltage.
+     * Find a multiblock hatch route. A native route is preferred. Otherwise, at least two hatches
+     * from the tier immediately below the requested voltage can promote to that voltage, with up
+     * to four hatches participating in the aggregate draw.
      */
     public static @Nullable HatchRoute hatchRoute(Collection<CableTier> inputs, CableTier required) {
         CableTier nativeTier = routeTier(inputs, required);
@@ -36,7 +37,7 @@ public final class TierUtil {
         if (requiredIndex <= 0) return null;
         CableTier lowerTier = tiers.get(requiredIndex - 1);
         long lowerHatches = inputs.stream().filter(tier -> tier == lowerTier).count();
-        return lowerHatches >= 2 ? new HatchRoute(lowerTier, required, 2) : null;
+        return lowerHatches >= 2 ? new HatchRoute(lowerTier, required, 4) : null;
     }
 
     public static long maxHatchEuPerTick(CableTier tier) {

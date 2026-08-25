@@ -26,5 +26,6 @@ JEI is included in the development client runtime for recipe inspection. Launch 
 `.\gradlew.bat runClient`; JEI is not bundled into or required by the release jar.
 
 Multiblock energy input hatches accept up to two amps each. A recipe may use a native-tier hatch,
-or exactly two hatches from the immediately lower voltage tier (for example, two LV hatches for an
-MV recipe). Promotion does not cascade across multiple tiers.
+or aggregate up to four hatches from the immediately lower voltage tier. This allows either two LV
+hatches receiving two amps each or four LV hatches receiving one amp each to power an MV recipe.
+Promotion does not cascade across multiple tiers.
