@@ -44,7 +44,7 @@ abstract class AbstractElectricCraftingMultiblockMixin implements HardPowerState
     @Inject(method = "<init>", at = @At("TAIL"))
     private void miEnergyTiers$registerPowerGui(CallbackInfo ci) {
         ((MachineBlockEntityAccessor) this).miEnergyTiers$registerGuiComponent(
-                new HardPowerGuiComponent(() -> miEnergyTiers$powerState));
+                new HardPowerGuiComponent(() -> miEnergyTiers$powerState, 4, 32));
     }
 
     @Inject(method = "onRematch", at = @At("TAIL"))

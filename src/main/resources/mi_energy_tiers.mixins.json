@@ -11,6 +11,7 @@
     "ElectricityNetworkNodeMixin",
     "EnergyHelperMixin",
     "EnergyComponentMixin",
+    "JadeEnergyProviderMixin",
     "MachineBlockEntityAccessor",
     "WrappedExternalStorageMixin"
   ],

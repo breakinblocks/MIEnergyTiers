@@ -3,6 +3,7 @@ package com.breakinblocks.mienergytiers.client;
 import aztech.modern_industrialization.client.machines.gui.ClientComponentRenderer;
 import aztech.modern_industrialization.client.machines.gui.GuiComponentClient;
 import aztech.modern_industrialization.client.machines.gui.MachineScreen;
+import aztech.modern_industrialization.client.machines.guicomponents.EnergyBarClient;
 import com.breakinblocks.mienergytiers.gui.HardPowerGuiComponent;
 import com.breakinblocks.mienergytiers.power.HardPowerError;
 import java.util.List;
@@ -10,10 +11,9 @@ import net.minecraft.ChatFormatting;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.network.chat.Component;
-import net.minecraft.util.Unit;
 
-public final class HardPowerGuiClient extends GuiComponentClient<Unit, HardPowerGuiComponent.Data> {
-    public HardPowerGuiClient(Unit params, HardPowerGuiComponent.Data data) {
+public final class HardPowerGuiClient extends GuiComponentClient<HardPowerGuiComponent.Params, HardPowerGuiComponent.Data> {
+    public HardPowerGuiClient(HardPowerGuiComponent.Params params, HardPowerGuiComponent.Data data) {
         super(params, data);
     }
 
@@ -25,16 +25,17 @@ public final class HardPowerGuiClient extends GuiComponentClient<Unit, HardPower
     private final class Renderer implements ClientComponentRenderer {
         @Override
         public void renderBackground(GuiGraphics graphics, int left, int top) {
-            if (data.error() != HardPowerError.NONE) {
-                graphics.drawString(net.minecraft.client.Minecraft.getInstance().font, "⚡", left + 7, top + 7, 0xffff5555, false);
-            }
+            EnergyBarClient.Renderer.renderEnergy(graphics, left + params.renderX(), top + params.renderY(),
+                    data.error() == HardPowerError.NONE ? 0.0F : 1.0F);
         }
 
         @Override
         public boolean renderTooltip(MachineScreen screen, Font font, GuiGraphics graphics,
                 int left, int top, int cursorX, int cursorY) {
-            if (data.error() == HardPowerError.NONE || cursorX < left + 5 || cursorX >= left + 17
-                    || cursorY < top + 5 || cursorY >= top + 17) return false;
+            int x = left + params.renderX();
+            int y = top + params.renderY();
+            if (data.error() == HardPowerError.NONE || cursorX < x || cursorX >= x + 13
+                    || cursorY < y || cursorY >= y + 18) return false;
             Component line = switch (data.error()) {
                 case INSUFFICIENT_INSTANTANEOUS_POWER -> Component.translatable(
                         "mi_energy_tiers.power.insufficient", data.available(), data.requested());

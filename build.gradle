@@ -66,6 +66,7 @@ dependencies {
     implementation "dev.technici4n:GrandPower:${project.grandpower_version}"
     compileOnly "mezz.jei:jei-1.21.1-neoforge-api:${project.jei_version}"
     localRuntimeOnly "mezz.jei:jei-1.21.1-neoforge:${project.jei_version}"
+    compileOnly "maven.modrinth:jade:${project.jade_version}"
     localRuntimeOnly "maven.modrinth:jade:${project.jade_version}"
 }
 

@@ -3,6 +3,7 @@ package com.breakinblocks.mienergytiers.mixin;
 import aztech.modern_industrialization.api.energy.CableTier;
 import aztech.modern_industrialization.machines.blockentities.ElectricCraftingMachineBlockEntity;
 import aztech.modern_industrialization.machines.components.EnergyComponent;
+import aztech.modern_industrialization.machines.guicomponents.EnergyBar;
 import aztech.modern_industrialization.machines.recipe.MachineRecipe;
 import aztech.modern_industrialization.util.Simulation;
 import com.breakinblocks.mienergytiers.energy.TierUtil;
@@ -35,8 +36,13 @@ abstract class ElectricCraftingMachineMixin implements HardPowerStateHolder, Rec
 
     @Inject(method = "<init>", at = @At("TAIL"))
     private void miEnergyTiers$registerPowerGui(CallbackInfo ci) {
+        ElectricCraftingMachineBlockEntity machine = (ElectricCraftingMachineBlockEntity) (Object) this;
+        EnergyBar energyBar = machine.guiComponents.getNullable(EnergyBar.class);
+        int renderX = energyBar == null ? 39 : energyBar.params.renderX();
+        int renderY = energyBar == null ? 65 : energyBar.params.renderY();
+        if (energyBar != null) machine.guiComponents.unregister(energyBar);
         ((MachineBlockEntityAccessor) this).miEnergyTiers$registerGuiComponent(
-                new HardPowerGuiComponent(() -> miEnergyTiers$powerState));
+                new HardPowerGuiComponent(() -> miEnergyTiers$powerState, renderX, renderY));
     }
 
     @Override

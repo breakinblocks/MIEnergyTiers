@@ -8,6 +8,7 @@ import com.breakinblocks.mienergytiers.energy.TierAwareEndpoint;
 import com.breakinblocks.mienergytiers.energy.TierUtil;
 import com.breakinblocks.mienergytiers.energy.TransferEndpoint;
 import com.breakinblocks.mienergytiers.config.HardEnergyConfig;
+import com.breakinblocks.mienergytiers.gui.HardPowerGuiComponent;
 import com.breakinblocks.mienergytiers.overload.OverloadManager;
 import com.breakinblocks.mienergytiers.power.InstantaneousPowerBudget;
 import com.breakinblocks.mienergytiers.power.InstantaneousPowerTracker;
@@ -21,6 +22,7 @@ import aztech.modern_industrialization.MI;
 import aztech.modern_industrialization.MIFluids;
 import aztech.modern_industrialization.machines.blockentities.ElectricCraftingMachineBlockEntity;
 import aztech.modern_industrialization.machines.blockentities.GeneratorMachineBlockEntity;
+import aztech.modern_industrialization.machines.guicomponents.EnergyBar;
 import aztech.modern_industrialization.machines.blockentities.TransformerMachineBlockEntity;
 import aztech.modern_industrialization.pipes.MIPipes;
 import aztech.modern_industrialization.pipes.api.PipeNetworkType;
@@ -217,6 +219,10 @@ public final class HardEnergyGameTests {
             helper.setBlock(machinePos, BuiltInRegistries.BLOCK.get(MI.id("electrolyzer")));
             GeneratorMachineBlockEntity generator = helper.getBlockEntity(generatorPos);
             ElectricCraftingMachineBlockEntity machine = helper.getBlockEntity(machinePos);
+            check(machine.guiComponents.getNullable(EnergyBar.class) == null,
+                    "strict electric crafter still registered MI's stored-energy GUI bar");
+            check(machine.guiComponents.getNullable(HardPowerGuiComponent.class) != null,
+                    "strict electric crafter did not register its throughput indicator");
             generator.orientation.outputDirection = Direction.EAST;
             ItemStack salt = new ItemStack(BuiltInRegistries.ITEM.get(MI.id("salt_dust")), 2);
             check(machine.getInventory().itemStorage.itemHandler.insertItem(0, salt, false).isEmpty(),

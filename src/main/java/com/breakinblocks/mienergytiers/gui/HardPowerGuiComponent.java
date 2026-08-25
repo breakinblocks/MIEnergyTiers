@@ -6,24 +6,24 @@ import com.breakinblocks.mienergytiers.power.HardPowerError;
 import com.breakinblocks.mienergytiers.power.HardPowerState;
 import io.netty.buffer.ByteBuf;
 import java.util.function.Supplier;
-import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.codec.ByteBufCodecs;
 import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.resources.ResourceLocation;
-import net.minecraft.util.Unit;
 
-public final class HardPowerGuiComponent implements GuiComponentServer<Unit, HardPowerGuiComponent.Data> {
-    public static final Type<Unit, Data> TYPE = new Type<>(
+public final class HardPowerGuiComponent implements GuiComponentServer<HardPowerGuiComponent.Params, HardPowerGuiComponent.Data> {
+    public static final Type<Params, Data> TYPE = new Type<>(
             ResourceLocation.fromNamespaceAndPath(MIEnergyTiers.MOD_ID, "hard_power_state"),
-            StreamCodec.unit(Unit.INSTANCE), Data.STREAM_CODEC);
+            Params.STREAM_CODEC, Data.STREAM_CODEC);
 
     private final Supplier<HardPowerState> state;
+    private final Params params;
 
-    public HardPowerGuiComponent(Supplier<HardPowerState> state) {
+    public HardPowerGuiComponent(Supplier<HardPowerState> state, int renderX, int renderY) {
         this.state = state;
+        this.params = new Params(renderX, renderY);
     }
 
-    @Override public Unit getParams() { return Unit.INSTANCE; }
+    @Override public Params getParams() { return params; }
 
     @Override
     public Data extractData() {
@@ -34,7 +34,22 @@ public final class HardPowerGuiComponent implements GuiComponentServer<Unit, Har
                 value.error());
     }
 
-    @Override public Type<Unit, Data> getType() { return TYPE; }
+    @Override public Type<Params, Data> getType() { return TYPE; }
+
+    public record Params(int renderX, int renderY) {
+        public static final StreamCodec<ByteBuf, Params> STREAM_CODEC = new StreamCodec<>() {
+            @Override
+            public Params decode(ByteBuf buffer) {
+                return new Params(ByteBufCodecs.VAR_INT.decode(buffer), ByteBufCodecs.VAR_INT.decode(buffer));
+            }
+
+            @Override
+            public void encode(ByteBuf buffer, Params value) {
+                ByteBufCodecs.VAR_INT.encode(buffer, value.renderX);
+                ByteBufCodecs.VAR_INT.encode(buffer, value.renderY);
+            }
+        };
+    }
 
     public record Data(long requested, long available, String recipeTier, String inputTier, HardPowerError error) {
         public static final StreamCodec<ByteBuf, Data> STREAM_CODEC = new StreamCodec<>() {
