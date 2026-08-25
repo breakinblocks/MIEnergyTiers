@@ -61,6 +61,14 @@ public final class HardEnergyGameTests {
             check(poweredTick(ledger, budget, 0, 128) == 0 && ledger.energy == 512 && ledger.progress == 0,
                     "fractional power changed energy or progress");
         }));
+        tests.add(test("received_power_survives_spending", helper -> {
+            InstantaneousPowerBudget budget = new InstantaneousPowerBudget();
+            budget.receive(0, 32, CableTier.LV);
+            check(budget.spend(0, 32), "fresh power could not be spent");
+            check(budget.available(0) == 0 && budget.received(0) == 32,
+                    "input throughput disappeared after machine consumption");
+            check(budget.received(2) == 0, "stale input throughput did not expire");
+        }));
         tests.add(test("progress_resumes_after_full_power", helper -> {
             Ledger ledger = new Ledger(512, 256, 1280);
             InstantaneousPowerBudget budget = new InstantaneousPowerBudget();

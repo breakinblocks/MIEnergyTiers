@@ -26,7 +26,7 @@ public final class HardPowerGuiClient extends GuiComponentClient<HardPowerGuiCom
         @Override
         public void renderBackground(GuiGraphics graphics, int left, int top) {
             EnergyBarClient.Renderer.renderEnergy(graphics, left + params.renderX(), top + params.renderY(),
-                    data.error() == HardPowerError.NONE ? 0.0F : 1.0F);
+                    data.error() == HardPowerError.NONE ? 1.0F : 0.0F);
         }
 
         @Override

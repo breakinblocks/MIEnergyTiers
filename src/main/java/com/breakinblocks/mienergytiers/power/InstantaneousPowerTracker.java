@@ -17,6 +17,10 @@ public final class InstantaneousPowerTracker {
         return budget(component).available(tick);
     }
 
+    public static synchronized long received(EnergyComponent component, long tick) {
+        return budget(component).received(tick);
+    }
+
     public static synchronized @Nullable CableTier inputTier(EnergyComponent component, long tick) {
         return budget(component).inputTier(tick);
     }
