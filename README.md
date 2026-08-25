@@ -13,5 +13,9 @@ Build and verify with:
 
 Configuration is written to `serverconfig/mi_energy_tiers-server.toml` in each world.
 
+Set `strictEnergy.overloadPolicy` to `REJECT` (the default) for safe transfer cancellation, or
+`DESTRUCTIVE` to cancel the transfer and defer smoke, explosion sound, and cable/endpoint damage
+until after MI's network iteration. Restart the world after editing its server config.
+
 JEI is included in the development client runtime for recipe inspection. Launch it with
 `.\gradlew.bat runClient`; JEI is not bundled into or required by the release jar.

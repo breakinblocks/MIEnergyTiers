@@ -7,6 +7,8 @@ import com.breakinblocks.mienergytiers.energy.ExternalEnergyPolicy;
 import com.breakinblocks.mienergytiers.energy.TierAwareEndpoint;
 import com.breakinblocks.mienergytiers.energy.TierUtil;
 import com.breakinblocks.mienergytiers.energy.TransferEndpoint;
+import com.breakinblocks.mienergytiers.config.HardEnergyConfig;
+import com.breakinblocks.mienergytiers.overload.OverloadManager;
 import com.breakinblocks.mienergytiers.power.InstantaneousPowerBudget;
 import com.breakinblocks.mienergytiers.power.InstantaneousPowerTracker;
 import com.breakinblocks.mienergytiers.power.NetworkPowerPolicy;
@@ -103,6 +105,30 @@ public final class HardEnergyGameTests {
             try (var p2p = context(CableTier.SUPERCONDUCTOR)) {
                 check(EnergyTransferContext.current().tier() == CableTier.SUPERCONDUCTOR, "AE2 P2P tier lost");
             }
+        }));
+        tests.add(asyncTest("overload_policies_are_configurable", helper -> {
+            BlockPos position = new BlockPos(0, 1, 0);
+            helper.setBlock(position, Blocks.COPPER_BLOCK);
+            HardEnergyConfig.OverloadPolicy previous = HardEnergyConfig.OVERLOAD_POLICY.get();
+            HardEnergyConfig.OVERLOAD_POLICY.set(HardEnergyConfig.OverloadPolicy.REJECT);
+            check(OverloadManager.reject(helper.getLevel(), helper.absolutePos(position), CableTier.MV, CableTier.LV)
+                            == OverloadManager.Outcome.REJECTED,
+                    "REJECT did not report a safe rejection");
+
+            helper.startSequence().thenIdle(2).thenExecute(() -> {
+                check(helper.getBlockState(position).is(Blocks.COPPER_BLOCK),
+                        "REJECT damaged the overloaded block");
+                HardEnergyConfig.OVERLOAD_POLICY.set(HardEnergyConfig.OverloadPolicy.DESTRUCTIVE);
+                check(OverloadManager.reject(helper.getLevel(), helper.absolutePos(position), CableTier.MV, CableTier.LV)
+                                == OverloadManager.Outcome.DESTRUCTION_QUEUED,
+                        "DESTRUCTIVE did not queue deferred damage");
+                check(helper.getBlockState(position).is(Blocks.COPPER_BLOCK),
+                        "DESTRUCTIVE damaged the block during the initiating operation");
+            }).thenIdle(2).thenExecute(() -> {
+                boolean destroyed = helper.getBlockState(position).isAir();
+                HardEnergyConfig.OVERLOAD_POLICY.set(previous);
+                check(destroyed, "DESTRUCTIVE did not apply deferred block damage");
+            }).thenSucceed();
         }));
         tests.add(test("step_up_transformer_does_not_multiply_throughput", helper -> {
             InstantaneousPowerBudget transformerInput = new InstantaneousPowerBudget();
