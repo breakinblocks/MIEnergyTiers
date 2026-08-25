@@ -1,15 +1,30 @@
+import org.gradle.api.provider.ValueSource
+import org.gradle.api.provider.ValueSourceParameters
+
 plugins {
     id 'java-library'
     id 'net.neoforged.moddev' version '2.0.112'
 }
 
-version = project.mod_version
+abstract class BuildTimestamp implements ValueSource<String, ValueSourceParameters.None> {
+    @Override
+    String obtain() {
+        new java.text.SimpleDateFormat('yyyyMMdd-HHmmss').format(new Date())
+    }
+}
+
+def snapshotBuild = project.mod_version.toString().endsWith('-SNAPSHOT')
+def resolvedModVersion = snapshotBuild
+        ? project.mod_version.toString().replace('-SNAPSHOT', '-' + providers.of(BuildTimestamp) {}.get() + '-SNAPSHOT')
+        : project.mod_version.toString()
+
+version = "${project.minecraft_version}-${resolvedModVersion}"
 group = project.mod_group
 
 base { archivesName = project.mod_id }
 
 jar {
-    manifest.attributes('Implementation-Version': project.mod_version)
+    manifest.attributes('Implementation-Version': project.version)
 }
 
 java {
@@ -71,10 +86,70 @@ dependencies {
 }
 
 tasks.withType(ProcessResources).configureEach {
-    def replacements = [mod_version: project.mod_version, neo_version: project.neo_version,
+    def replacements = [mod_version: resolvedModVersion, neo_version: project.neo_version,
                         mi_version: project.mi_version, grandpower_version: project.grandpower_version]
     inputs.properties replacements
     filesMatching('META-INF/neoforge.mods.toml') { expand replacements }
 }
 
 tasks.withType(JavaCompile).configureEach { options.encoding = 'UTF-8' }
+
+def packModsDir = providers.gradleProperty('pack_mods_dir')
+        .orElse(providers.environmentVariable('CONTINUUM2_PACK_MODS'))
+def packDeployEnabled = providers.gradleProperty('pack_deploy').map { it.toBoolean() }.getOrElse(true)
+
+abstract class DeployToPack extends DefaultTask {
+    @InputFile
+    abstract RegularFileProperty getSourceJar()
+
+    @Input
+    @Optional
+    abstract Property<String> getTargetDir()
+
+    @Input
+    abstract Property<String> getJarPrefix()
+
+    @Input
+    abstract Property<String> getDeployedName()
+
+    @TaskAction
+    void deploy() {
+        if (!targetDir.present) {
+            logger.lifecycle('pack_mods_dir is not set, skipping pack deploy')
+            return
+        }
+        def dir = new File(targetDir.get())
+        if (!dir.directory) {
+            throw new GradleException("pack_mods_dir is not a directory: ${dir}")
+        }
+        def built = sourceJar.get().asFile
+        def target = new File(dir, deployedName.get())
+        dir.listFiles()?.findAll {
+            it.file && it.name.startsWith(jarPrefix.get()) && it.name.endsWith('.jar') && it.name != target.name
+        }?.each {
+            if (it.delete()) {
+                logger.lifecycle("Removed stale ${it.name} from the pack")
+            } else {
+                throw new GradleException("Could not delete ${it.name} from the pack; close the game and build again")
+            }
+        }
+        try {
+            java.nio.file.Files.copy(built.toPath(), target.toPath(),
+                    java.nio.file.StandardCopyOption.REPLACE_EXISTING)
+        } catch (IOException e) {
+            throw new GradleException("Could not write ${target.name} to the pack; close the game and build again", e)
+        }
+        logger.lifecycle("Deployed ${target.name} to ${dir}")
+    }
+}
+
+tasks.register('deployToPack', DeployToPack) {
+    sourceJar = tasks.named('jar').flatMap { it.archiveFile }
+    targetDir = packModsDir
+    jarPrefix = "${project.mod_id}-"
+    deployedName = "${project.mod_id}-${project.version}.jar"
+}
+
+if (packDeployEnabled) {
+    tasks.named('jar') { finalizedBy('deployToPack') }
+}
