@@ -5,6 +5,7 @@ import com.breakinblocks.mienergytiers.config.HardEnergyConfig;
 import com.breakinblocks.mienergytiers.gametest.HardEnergyGameTests;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.fml.ModContainer;
+import net.neoforged.fml.ModList;
 import net.neoforged.fml.common.Mod;
 import net.neoforged.fml.config.ModConfig;
 import net.neoforged.neoforge.event.RegisterGameTestsEvent;
@@ -26,8 +27,10 @@ public final class MIEnergyTiers {
     }
 
     private static void verifyModernIndustrializationVersion() {
-        String actual = aztech.modern_industrialization.MI.class.getPackage().getImplementationVersion();
-        if (actual != null && !SUPPORTED_MI_VERSION.equals(actual)) {
+        String actual = ModList.get().getModContainerById("modern_industrialization")
+                .map(c -> c.getModInfo().getVersion().toString())
+                .orElse(null);
+        if (actual == null || !SUPPORTED_MI_VERSION.equals(actual)) {
             throw new IllegalStateException("MI Energy Tiers supports Modern Industrialization "
                     + SUPPORTED_MI_VERSION + " only, but found " + actual
                     + ". Install the supported MI build or a compatible MI Energy Tiers release.");
