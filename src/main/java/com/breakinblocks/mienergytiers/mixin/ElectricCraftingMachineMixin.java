@@ -43,7 +43,10 @@ abstract class ElectricCraftingMachineMixin implements HardPowerStateHolder, Rec
         if (energyBar != null) machine.guiComponents.unregister(energyBar);
         ((MachineBlockEntityAccessor) this).miEnergyTiers$registerGuiComponent(
                 new HardPowerGuiComponent(() -> miEnergyTiers$powerState,
-                        machine.getCrafterComponent()::hasActiveRecipe, renderX, renderY, false));
+                        machine.getCrafterComponent()::hasActiveRecipe,
+                        () -> machine.getLevel() == null ? 0 : InstantaneousPowerTracker.received(
+                                energy, machine.getLevel().getGameTime()),
+                        renderX, renderY, false));
     }
 
     @Override

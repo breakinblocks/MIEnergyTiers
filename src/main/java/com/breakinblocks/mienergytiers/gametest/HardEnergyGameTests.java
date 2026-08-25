@@ -74,9 +74,17 @@ public final class HardEnergyGameTests {
             HardPowerState state = new HardPowerState();
             state.clear(128, 128, CableTier.MV, CableTier.MV);
             HardPowerGuiComponent indicator = new HardPowerGuiComponent(
-                    () -> state, () -> false, 161, 4, true);
+                    () -> state, () -> false, () -> 0, 161, 4, true);
             check(!indicator.extractData().activeRecipe(), "idle machine was shown as ready to process");
+            check(indicator.extractData().inputEuPerTick() == 0,
+                    "disconnected idle machine reported incoming power");
             check(indicator.getParams().compact(), "multiblock power indicator was not compact");
+        }));
+        tests.add(test("powered_idle_indicator_has_input", helper -> {
+            HardPowerGuiComponent indicator = new HardPowerGuiComponent(
+                    HardPowerState::new, () -> false, () -> 32, 39, 65, false);
+            check(indicator.extractData().inputEuPerTick() == 32,
+                    "connected idle machine did not report incoming power");
         }));
         tests.add(test("progress_resumes_after_full_power", helper -> {
             Ledger ledger = new Ledger(512, 256, 1280);

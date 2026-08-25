@@ -49,7 +49,10 @@ abstract class AbstractElectricCraftingMultiblockMixin implements HardPowerState
                 (AbstractElectricCraftingMultiblockBlockEntity) (Object) this;
         ((MachineBlockEntityAccessor) this).miEnergyTiers$registerGuiComponent(
                 new HardPowerGuiComponent(() -> miEnergyTiers$powerState,
-                        machine.getCrafterComponent()::hasActiveRecipe, 161, 4, true));
+                        machine.getCrafterComponent()::hasActiveRecipe,
+                        () -> machine.getLevel() == null ? 0 : InstantaneousPowerTracker.received(
+                                energyInputs, machine.getLevel().getGameTime()),
+                        161, 4, true));
     }
 
     @Inject(method = "onRematch", at = @At("TAIL"))

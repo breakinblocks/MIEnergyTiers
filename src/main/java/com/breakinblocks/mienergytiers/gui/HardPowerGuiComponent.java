@@ -6,6 +6,7 @@ import com.breakinblocks.mienergytiers.power.HardPowerError;
 import com.breakinblocks.mienergytiers.power.HardPowerState;
 import io.netty.buffer.ByteBuf;
 import java.util.function.BooleanSupplier;
+import java.util.function.LongSupplier;
 import java.util.function.Supplier;
 import net.minecraft.network.codec.ByteBufCodecs;
 import net.minecraft.network.codec.StreamCodec;
@@ -18,16 +19,18 @@ public final class HardPowerGuiComponent implements GuiComponentServer<HardPower
 
     private final Supplier<HardPowerState> state;
     private final BooleanSupplier activeRecipe;
+    private final LongSupplier inputEuPerTick;
     private final Params params;
 
     public HardPowerGuiComponent(Supplier<HardPowerState> state, int renderX, int renderY) {
-        this(state, () -> true, renderX, renderY, false);
+        this(state, () -> true, () -> 0, renderX, renderY, false);
     }
 
     public HardPowerGuiComponent(Supplier<HardPowerState> state, BooleanSupplier activeRecipe,
-            int renderX, int renderY, boolean compact) {
+            LongSupplier inputEuPerTick, int renderX, int renderY, boolean compact) {
         this.state = state;
         this.activeRecipe = activeRecipe;
+        this.inputEuPerTick = inputEuPerTick;
         this.params = new Params(renderX, renderY, compact);
     }
 
@@ -36,7 +39,8 @@ public final class HardPowerGuiComponent implements GuiComponentServer<HardPower
     @Override
     public Data extractData() {
         HardPowerState value = state.get();
-        return new Data(value.requestedEuPerTick(), value.availableEuPerTick(), activeRecipe.getAsBoolean(),
+        return new Data(value.requestedEuPerTick(), value.availableEuPerTick(), inputEuPerTick.getAsLong(),
+                activeRecipe.getAsBoolean(),
                 value.recipeTier() == null ? "" : value.recipeTier().name,
                 value.inputTier() == null ? "" : value.inputTier().name,
                 value.error());
@@ -61,13 +65,13 @@ public final class HardPowerGuiComponent implements GuiComponentServer<HardPower
         };
     }
 
-    public record Data(long requested, long available, boolean activeRecipe,
+    public record Data(long requested, long available, long inputEuPerTick, boolean activeRecipe,
             String recipeTier, String inputTier, HardPowerError error) {
         public static final StreamCodec<ByteBuf, Data> STREAM_CODEC = new StreamCodec<>() {
             @Override
             public Data decode(ByteBuf buffer) {
                 return new Data(ByteBufCodecs.VAR_LONG.decode(buffer), ByteBufCodecs.VAR_LONG.decode(buffer),
-                        ByteBufCodecs.BOOL.decode(buffer),
+                        ByteBufCodecs.VAR_LONG.decode(buffer), ByteBufCodecs.BOOL.decode(buffer),
                         ByteBufCodecs.STRING_UTF8.decode(buffer), ByteBufCodecs.STRING_UTF8.decode(buffer),
                         HardPowerError.values()[ByteBufCodecs.VAR_INT.decode(buffer)]);
             }
@@ -76,6 +80,7 @@ public final class HardPowerGuiComponent implements GuiComponentServer<HardPower
             public void encode(ByteBuf buffer, Data value) {
                 ByteBufCodecs.VAR_LONG.encode(buffer, value.requested);
                 ByteBufCodecs.VAR_LONG.encode(buffer, value.available);
+                ByteBufCodecs.VAR_LONG.encode(buffer, value.inputEuPerTick);
                 ByteBufCodecs.BOOL.encode(buffer, value.activeRecipe);
                 ByteBufCodecs.STRING_UTF8.encode(buffer, value.recipeTier);
                 ByteBufCodecs.STRING_UTF8.encode(buffer, value.inputTier);

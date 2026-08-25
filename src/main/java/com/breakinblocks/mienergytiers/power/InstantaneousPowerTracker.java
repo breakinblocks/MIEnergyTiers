@@ -21,6 +21,15 @@ public final class InstantaneousPowerTracker {
         return budget(component).received(tick);
     }
 
+    public static synchronized long received(Iterable<EnergyComponent> components, long tick) {
+        long total = 0;
+        for (EnergyComponent component : components) {
+            long received = budget(component).received(tick);
+            total = received > Long.MAX_VALUE - total ? Long.MAX_VALUE : total + received;
+        }
+        return total;
+    }
+
     public static synchronized @Nullable CableTier inputTier(EnergyComponent component, long tick) {
         return budget(component).inputTier(tick);
     }

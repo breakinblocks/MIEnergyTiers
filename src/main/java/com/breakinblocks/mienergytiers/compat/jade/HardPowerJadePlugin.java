@@ -4,7 +4,6 @@ import aztech.modern_industrialization.machines.MachineBlock;
 import aztech.modern_industrialization.machines.MachineBlockEntity;
 import aztech.modern_industrialization.machines.blockentities.ElectricCraftingMachineBlockEntity;
 import aztech.modern_industrialization.machines.blockentities.multiblocks.AbstractElectricCraftingMultiblockBlockEntity;
-import aztech.modern_industrialization.machines.components.EnergyComponent;
 import com.breakinblocks.mienergytiers.MIEnergyTiers;
 import com.breakinblocks.mienergytiers.power.HardPowerStateHolder;
 import com.breakinblocks.mienergytiers.power.InstantaneousPowerTracker;
@@ -65,12 +64,7 @@ public final class HardPowerJadePlugin implements IWailaPlugin {
                 return InstantaneousPowerTracker.received(machine.getEnergyComponent(), tick);
             }
             if (accessor.getBlockEntity() instanceof AbstractElectricCraftingMultiblockBlockEntity multiblock) {
-                long total = 0;
-                for (EnergyComponent energy : multiblock.getEnergyComponents()) {
-                    long received = InstantaneousPowerTracker.received(energy, tick);
-                    total = received > Long.MAX_VALUE - total ? Long.MAX_VALUE : total + received;
-                }
-                return total;
+                return InstantaneousPowerTracker.received(multiblock.getEnergyComponents(), tick);
             }
             return 0;
         }

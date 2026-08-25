@@ -26,8 +26,9 @@ public final class HardPowerGuiClient extends GuiComponentClient<HardPowerGuiCom
         @Override
         public void renderBackground(GuiGraphics graphics, int left, int top) {
             float scale = params.compact() ? 0.75F : 1.0F;
-            boolean hasEnoughPower = data.activeRecipe() && data.requested() > 0
-                    && data.available() >= data.requested() && data.error() == HardPowerError.NONE;
+            boolean hasEnoughPower = data.error() == HardPowerError.NONE && (data.activeRecipe()
+                    ? data.requested() > 0 && data.available() >= data.requested()
+                    : data.inputEuPerTick() > 0);
             graphics.pose().pushPose();
             graphics.pose().translate(left + params.renderX(), top + params.renderY(), 0);
             graphics.pose().scale(scale, scale, 1.0F);
