@@ -2,7 +2,10 @@ package com.breakinblocks.mienergytiers.energy;
 
 import aztech.modern_industrialization.api.energy.CableTier;
 import java.util.ArrayDeque;
+import java.util.LinkedHashSet;
 import java.util.Deque;
+import java.util.Set;
+import net.minecraft.core.BlockPos;
 import org.jspecify.annotations.Nullable;
 
 public final class EnergyTransferContext {
@@ -15,6 +18,8 @@ public final class EnergyTransferContext {
     private final long gameTick;
     // Direct transfers are fully fresh. Networks replace this with their actual extraction for the tick.
     private long freshAllowance = Long.MAX_VALUE;
+    private long networkPowerOffered;
+    private final Set<OverloadCandidate> overloadCandidates = new LinkedHashSet<>();
 
     public EnergyTransferContext(CableTier tier, TransferEndpoint source, TransferEndpoint destination, long gameTick) {
         this.tier = tier;
@@ -39,6 +44,26 @@ public final class EnergyTransferContext {
         freshAllowance -= claimed;
         return claimed;
     }
+
+    public synchronized void setNetworkPowerOffered(long amount) {
+        networkPowerOffered = Math.max(0, amount);
+    }
+
+    public synchronized long networkPowerOffered() {
+        return networkPowerOffered;
+    }
+
+    public synchronized void recordOverload(BlockPos cablePosition, BlockPos endpointPosition,
+            CableTier acceptedTier) {
+        overloadCandidates.add(new OverloadCandidate(
+                cablePosition.immutable(), endpointPosition.immutable(), acceptedTier));
+    }
+
+    public synchronized Set<OverloadCandidate> overloadCandidates() {
+        return Set.copyOf(overloadCandidates);
+    }
+
+    public record OverloadCandidate(BlockPos cablePosition, BlockPos endpointPosition, CableTier acceptedTier) {}
 
     public static Scope push(EnergyTransferContext context) {
         Deque<EnergyTransferContext> stack = CURRENT.get();

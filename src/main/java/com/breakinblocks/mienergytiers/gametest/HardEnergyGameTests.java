@@ -27,6 +27,8 @@ import aztech.modern_industrialization.machines.guicomponents.EnergyBar;
 import aztech.modern_industrialization.machines.blockentities.TransformerMachineBlockEntity;
 import aztech.modern_industrialization.pipes.MIPipes;
 import aztech.modern_industrialization.pipes.api.PipeNetworkType;
+import aztech.modern_industrialization.pipes.api.PipeEndpointType;
+import aztech.modern_industrialization.pipes.electricity.ElectricityNetworkNode;
 import aztech.modern_industrialization.pipes.impl.PipeBlockEntity;
 import aztech.modern_industrialization.thirdparty.fabrictransfer.api.fluid.FluidVariant;
 import aztech.modern_industrialization.thirdparty.fabrictransfer.api.transaction.Transaction;
@@ -169,6 +171,49 @@ public final class HardEnergyGameTests {
                 boolean destroyed = helper.getBlockState(position).isAir();
                 HardEnergyConfig.OVERLOAD_POLICY.set(previous);
                 check(destroyed, "DESTRUCTIVE did not apply deferred block damage");
+            }).thenSucceed();
+        }));
+        tests.add(asyncTest("destructive_overvoltage_is_reachable_from_cables", helper -> {
+            BlockPos generatorPos = new BlockPos(0, 1, 0);
+            BlockPos cablePos = new BlockPos(1, 1, 0);
+            BlockPos machinePos = new BlockPos(2, 1, 0);
+            helper.setBlock(generatorPos, BuiltInRegistries.BLOCK.get(MI.id("mv_diesel_generator")));
+            helper.setBlock(machinePos, BuiltInRegistries.BLOCK.get(MI.id("electrolyzer")));
+            helper.setBlock(cablePos, MIPipes.BLOCK_PIPE.get());
+
+            GeneratorMachineBlockEntity generator = helper.getBlockEntity(generatorPos);
+            generator.orientation.outputDirection = Direction.EAST;
+            PipeNetworkType cableType = PipeNetworkType.get(MI.id("electrum_cable"));
+            PipeBlockEntity cable = helper.getBlockEntity(cablePos);
+            cable.addPipe(cableType, MIPipes.INSTANCE.getPipeItem(cableType).defaultData);
+            helper.getLevel().blockUpdated(helper.absolutePos(cablePos), Blocks.AIR);
+            var player = helper.makeMockPlayer(GameType.SURVIVAL);
+            ElectricityNetworkNode node = (ElectricityNetworkNode) cable.getNodes().stream()
+                    .filter(candidate -> candidate.getType() == cableType).findFirst().orElseThrow();
+
+            HardEnergyConfig.OverloadPolicy previous = HardEnergyConfig.OVERLOAD_POLICY.get();
+            HardEnergyConfig.OVERLOAD_POLICY.set(HardEnergyConfig.OverloadPolicy.REJECT);
+            cable.addConnection(player, cableType, Direction.EAST);
+            check(node.getConnections(helper.absolutePos(cablePos))[Direction.EAST.get3DDataValue()] == null,
+                    "REJECT allowed an MV cable to connect to an LV machine");
+
+            HardEnergyConfig.OVERLOAD_POLICY.set(HardEnergyConfig.OverloadPolicy.DESTRUCTIVE);
+            cable.addConnection(player, cableType, Direction.EAST);
+            PipeEndpointType endpoint = node.getConnections(
+                    helper.absolutePos(cablePos))[Direction.EAST.get3DDataValue()];
+            check(endpoint != null, "DESTRUCTIVE could not form an overvoltage connection");
+            cable.addConnection(player, cableType, Direction.WEST);
+            try (Transaction transaction = Transaction.openRoot()) {
+                generator.getInventory().fluidStorage.insert(MIFluids.BIODIESEL.variant(), 1000, transaction);
+                transaction.commit();
+            }
+
+            helper.startSequence().thenIdle(8).thenExecute(() -> {
+                HardEnergyConfig.OVERLOAD_POLICY.set(previous);
+                check(helper.getBlockState(cablePos).isAir(),
+                        "energized destructive overvoltage did not damage the cable");
+                check(!helper.getBlockState(machinePos).isAir(),
+                        "deferred cable overload destroyed the receiving machine");
             }).thenSucceed();
         }));
         tests.add(test("step_up_transformer_does_not_multiply_throughput", helper -> {

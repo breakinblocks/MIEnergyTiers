@@ -25,7 +25,7 @@ public final class HardEnergyConfig {
         OVERLOAD_POLICY = builder.comment(
                 "Behavior when a typed source exceeds the receiver voltage.",
                 "REJECT: cancel the transfer without changing blocks.",
-                "DESTRUCTIVE: cancel the transfer, then emit smoke/sound and damage the overloaded cable or endpoint after network iteration.")
+                "DESTRUCTIVE: permit the mismatched physical connection, cancel EU transfer, then emit smoke/sound and damage the energized overloaded cable or endpoint after network iteration.")
                 .defineEnum("overloadPolicy", OverloadPolicy.REJECT);
         DIAGNOSTIC_LEVEL = builder.comment("Logging level for rejected overvoltage transfers.")
                 .defineEnum("diagnosticLevel", DiagnosticLevel.INFO);

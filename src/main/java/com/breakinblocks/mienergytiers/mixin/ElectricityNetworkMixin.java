@@ -8,6 +8,9 @@ import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
 import com.breakinblocks.mienergytiers.energy.EnergyTransferContext;
 import com.breakinblocks.mienergytiers.energy.TransferEndpoint;
 import com.breakinblocks.mienergytiers.power.NetworkPowerPolicy;
+import com.breakinblocks.mienergytiers.overload.OverloadManager;
+import com.breakinblocks.mienergytiers.power.HardPowerError;
+import com.breakinblocks.mienergytiers.power.HardPowerStateHolder;
 import net.minecraft.server.level.ServerLevel;
 import java.util.List;
 import org.spongepowered.asm.mixin.Final;
@@ -35,6 +38,15 @@ abstract class ElectricityNetworkMixin {
         return maximum;
     }
 
+    @ModifyArg(method = "tick", at = @At(value = "INVOKE",
+            target = "Laztech/modern_industrialization/pipes/electricity/ElectricityNetwork;transferForTargets(Laztech/modern_industrialization/pipes/electricity/ElectricityNetwork$TransferOperation;Ljava/util/List;J)J",
+            ordinal = 1), index = 2)
+    private long miEnergyTiers$captureOfferedNetworkPower(long maximum) {
+        EnergyTransferContext context = EnergyTransferContext.current();
+        if (context != null) context.setNetworkPowerOffered(maximum);
+        return maximum;
+    }
+
     @WrapMethod(method = "tick")
     private void miEnergyTiers$carryNetworkTier(ServerLevel world, Operation<Void> original) {
         var context = new EnergyTransferContext(tier,
@@ -43,6 +55,18 @@ abstract class ElectricityNetworkMixin {
         context.setFreshAllowance(0);
         try (var ignored = EnergyTransferContext.push(context)) {
             original.call(world);
+            if (context.networkPowerOffered() > 0) {
+                for (EnergyTransferContext.OverloadCandidate candidate : context.overloadCandidates()) {
+                    var endpoint = world.getBlockEntity(candidate.endpointPosition());
+                    if (endpoint instanceof HardPowerStateHolder stateHolder) {
+                        stateHolder.miEnergyTiers$getHardPowerState().update(
+                                0, 0, null, candidate.acceptedTier(), HardPowerError.OVERVOLTAGE_REJECTED);
+                    }
+                    // ElectricityNetwork.tick has returned from node iteration; actual block damage
+                    // remains queued until the server tick post event.
+                    OverloadManager.reject(world, candidate.cablePosition(), tier, candidate.acceptedTier());
+                }
+            }
         }
     }
 }

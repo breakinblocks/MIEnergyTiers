@@ -26,7 +26,7 @@ World-specific settings are written to `serverconfig/mi_energy_tiers-server.toml
 `strictEnergy.overloadPolicy` controls overvoltage:
 
 - `REJECT` safely cancels the transfer (default).
-- `DESTRUCTIVE` cancels it, then defers smoke, sound, and cable or endpoint damage until MI finishes iterating the network.
+- `DESTRUCTIVE` permits the mismatched physical connection but blocks EU transfer. Once energized, it defers smoke, sound, and cable or endpoint damage until MI finishes iterating the network.
 
 Diagnostic logging and rejection of untyped external input are also configurable. Restart the world after changing its server config.
 
