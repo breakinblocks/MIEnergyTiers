@@ -3,7 +3,9 @@ import org.gradle.api.provider.ValueSourceParameters
 
 plugins {
     id 'java-library'
+    id 'maven-publish'
     id 'net.neoforged.moddev' version '2.0.112'
+    id 'me.modmuss50.mod-publish-plugin' version '1.1.0'
 }
 
 abstract class BuildTimestamp implements ValueSource<String, ValueSourceParameters.None> {
@@ -20,6 +22,22 @@ def resolvedModVersion = snapshotBuild
 
 version = "${project.minecraft_version}-${resolvedModVersion}"
 group = project.mod_group
+
+def latestChangelog() {
+    def lines = file('CHANGELOG.md').readLines()
+    def body = []
+    def started = false
+    for (line in lines) {
+        if (line.startsWith('## ')) {
+            if (started) break
+            started = true
+            continue
+        }
+        if (started) body << line
+    }
+    def section = body.join('\n').trim()
+    return section.isEmpty() ? file('CHANGELOG.md').text.trim() : section
+}
 
 base { archivesName = project.mod_id }
 
@@ -86,8 +104,9 @@ dependencies {
 }
 
 tasks.withType(ProcessResources).configureEach {
-    def replacements = [mod_version: resolvedModVersion, neo_version: project.neo_version,
-                        mi_version: project.mi_version, grandpower_version: project.grandpower_version]
+    def replacements = [mod_version: resolvedModVersion, mod_name: project.mod_name,
+                        neo_version: project.neo_version, mi_version: project.mi_version,
+                        grandpower_version: project.grandpower_version]
     inputs.properties replacements
     filesMatching('META-INF/neoforge.mods.toml') { expand replacements }
 }
@@ -152,4 +171,63 @@ tasks.register('deployToPack', DeployToPack) {
 
 if (packDeployEnabled) {
     tasks.named('jar') { finalizedBy('deployToPack') }
+}
+
+publishing {
+    publications {
+        register('mavenJava', MavenPublication) {
+            artifactId = project.mod_id
+            from components.java
+        }
+    }
+    repositories {
+        maven {
+            name = 'BreakInBlocks'
+            url = snapshotBuild ?
+                    'https://maven.breakinblocks.com/snapshots' :
+                    'https://maven.breakinblocks.com/releases'
+            credentials {
+                username = providers.environmentVariable('MAVEN_USER').getOrElse('')
+                password = providers.environmentVariable('MAVEN_TOKEN').getOrElse('')
+            }
+        }
+    }
+}
+
+publishMods {
+    dryRun = providers.environmentVariable('CURSEFORGE_TOKEN').getOrNull() == null
+    file = tasks.named('jar').flatMap { it.archiveFile }
+    changelog = latestChangelog()
+    version = project.version
+    type = snapshotBuild ? BETA : STABLE
+    modLoaders.add('neoforge')
+    displayName = "[${project.minecraft_version}] ${project.mod_name} ${resolvedModVersion}"
+
+    curseforge {
+        projectId = '1682001'
+        projectSlug = 'modern-industrialization-energy-tiers'
+        accessToken = providers.environmentVariable('CURSEFORGE_TOKEN')
+        minecraftVersions.add(project.minecraft_version)
+        javaVersions.add(JavaVersion.VERSION_21)
+        clientRequired = true
+        serverRequired = true
+        requires('modern-industrialization')
+        optional('jade')
+    }
+}
+
+tasks.register('publishMaven') {
+    description = 'Publishes the mod JAR and sources JAR to the BreakInBlocks Maven repository.'
+    group = 'publishing'
+    dependsOn 'publishMavenJavaPublicationToBreakInBlocksRepository'
+}
+
+tasks.register('publishMod') {
+    description = 'Publishes the mod to CurseForge and the BreakInBlocks Maven repository.'
+    group = 'publishing'
+    dependsOn 'publishMods', 'publishMaven'
+}
+
+tasks.named('publishMods') {
+    finalizedBy 'publishMaven'
 }

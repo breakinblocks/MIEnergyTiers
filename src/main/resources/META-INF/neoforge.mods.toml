@@ -5,7 +5,7 @@ license="MIT"
 [[mods]]
 modId="mi_energy_tiers"
 version="${mod_version}"
-displayName="MI Energy Tiers"
+displayName="${mod_name}"
 authors="TheonlyTazz"
 description='''Hard, atomic, tier-aware energy rules for Modern Industrialization.'''
 
