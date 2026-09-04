@@ -3,5 +3,13 @@
   "mi_energy_tiers.power.wrong_tier": "Recipe requires %s; machine accepts %s",
   "mi_energy_tiers.power.invalid_hatch": "Requires a matching energy hatch or 2-4 hatches one voltage tier lower",
   "mi_energy_tiers.power.overvoltage": "Overvoltage rejected",
-  "mi_energy_tiers.jade.input": "Input: %s EU/t"
+  "mi_energy_tiers.jade.input": "Input: %s EU/t",
+  "mi_energy_tiers.tooltip.casing.voltage": "Machine voltage: %s (%s EU/t per amp)",
+  "mi_energy_tiers.tooltip.casing.recipes": "Runs recipes up to %s EU/t",
+  "mi_energy_tiers.tooltip.casing.amps": "Upgrades raise the draw to %s EU/t (%s amps)",
+  "mi_energy_tiers.tooltip.upgrade.amperage": "Machine amperage: +%s EU each",
+  "mi_energy_tiers.tooltip.upgrade.per_item": "%s: +%s amps each",
+  "mi_energy_tiers.tooltip.upgrade.per_amp": "%s: %s for +1 amp",
+  "mi_energy_tiers.tooltip.upgrade.full": "%s: fills all %s amps",
+  "mi_energy_tiers.tooltip.shift": "Hold Shift for amps by voltage"
 }

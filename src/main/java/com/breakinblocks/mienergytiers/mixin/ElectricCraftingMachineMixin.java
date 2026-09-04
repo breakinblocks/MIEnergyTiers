@@ -2,10 +2,13 @@ package com.breakinblocks.mienergytiers.mixin;
 
 import aztech.modern_industrialization.api.energy.CableTier;
 import aztech.modern_industrialization.machines.blockentities.ElectricCraftingMachineBlockEntity;
+import aztech.modern_industrialization.machines.components.CrafterComponent;
 import aztech.modern_industrialization.machines.components.EnergyComponent;
+import aztech.modern_industrialization.machines.components.UpgradeComponent;
 import aztech.modern_industrialization.machines.guicomponents.EnergyBar;
 import aztech.modern_industrialization.machines.recipe.MachineRecipe;
 import aztech.modern_industrialization.util.Simulation;
+import com.breakinblocks.mienergytiers.energy.AmperagePolicy;
 import com.breakinblocks.mienergytiers.energy.TierUtil;
 import com.breakinblocks.mienergytiers.power.HardPowerError;
 import com.breakinblocks.mienergytiers.power.HardPowerState;
@@ -25,6 +28,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 @Mixin(ElectricCraftingMachineBlockEntity.class)
 abstract class ElectricCraftingMachineMixin implements HardPowerStateHolder, RecipeVoltagePolicy {
     @Shadow @Final private EnergyComponent energy;
+    @Shadow @Final private UpgradeComponent upgrades;
     @Shadow public abstract CableTier getCableTier();
 
     @Unique private final HardPowerState miEnergyTiers$powerState = new HardPowerState();
@@ -60,14 +64,24 @@ abstract class ElectricCraftingMachineMixin implements HardPowerStateHolder, Rec
         return allowed;
     }
 
+    @Override
+    public long miEnergyTiers$maxRecipeEu() {
+        return AmperagePolicy.maxRecipeEu(getCableTier(), upgrades.getAddMaxEUPerTick());
+    }
+
+    @Inject(method = "getMaxRecipeEu", at = @At("HEAD"), cancellable = true)
+    private void miEnergyTiers$applyVoltageCap(CallbackInfoReturnable<Long> cir) {
+        cir.setReturnValue(miEnergyTiers$maxRecipeEu());
+    }
+
     @Inject(method = "consumeEu", at = @At("HEAD"), cancellable = true)
     private void miEnergyTiers$atomicDraw(long requested, Simulation simulation,
             CallbackInfoReturnable<Long> cir) {
         CableTier installed = getCableTier();
-        CableTier required = TierUtil.forEu(requested);
+        CableTier required = miEnergyTiers$recipeTier(requested);
         long gameTick = ((ElectricCraftingMachineBlockEntity) (Object) this).getLevel().getGameTime();
         CableTier inputTier = InstantaneousPowerTracker.inputTier(energy, gameTick);
-        if (requested > installed.getEu()) {
+        if (required.compareTo(installed) > 0) {
             if (simulation == Simulation.ACT) {
                 miEnergyTiers$powerState.update(requested, 0, required, installed, HardPowerError.WRONG_RECIPE_TIER);
             }
@@ -75,11 +89,17 @@ abstract class ElectricCraftingMachineMixin implements HardPowerStateHolder, Rec
             return;
         }
 
-        long available = Math.min(energy.consumeEu(requested, Simulation.SIMULATE),
+        long draw = Math.min(requested, miEnergyTiers$maxRecipeEu());
+        if (draw <= 0) {
+            cir.setReturnValue(0L);
+            return;
+        }
+
+        long available = Math.min(energy.consumeEu(draw, Simulation.SIMULATE),
                 InstantaneousPowerTracker.available(energy, gameTick));
-        if (available != requested) {
+        if (available != draw) {
             if (simulation == Simulation.ACT) {
-                miEnergyTiers$powerState.update(requested, available, required, inputTier,
+                miEnergyTiers$powerState.update(draw, available, required, inputTier,
                         HardPowerError.INSUFFICIENT_INSTANTANEOUS_POWER);
             }
             cir.setReturnValue(0L);
@@ -87,15 +107,21 @@ abstract class ElectricCraftingMachineMixin implements HardPowerStateHolder, Rec
         }
 
         if (simulation == Simulation.ACT) {
-            if (!InstantaneousPowerTracker.spend(energy, gameTick, requested)) {
+            if (!InstantaneousPowerTracker.spend(energy, gameTick, draw)) {
                 throw new IllegalStateException("Instantaneous MI power budget changed between simulation and commit");
             }
-            long consumed = energy.consumeEu(requested, Simulation.ACT);
-            if (consumed != requested) {
+            long consumed = energy.consumeEu(draw, Simulation.ACT);
+            if (consumed != draw) {
                 throw new IllegalStateException("MI energy storage changed between atomic simulation and commit");
             }
-            miEnergyTiers$powerState.clear(requested, requested, required, inputTier);
+            miEnergyTiers$powerState.clear(draw, draw, required, inputTier);
         }
-        cir.setReturnValue(requested);
+        cir.setReturnValue(draw);
+    }
+
+    @Unique
+    private CableTier miEnergyTiers$recipeTier(long requested) {
+        CrafterComponent crafter = ((ElectricCraftingMachineBlockEntity) (Object) this).getCrafterComponent();
+        return TierUtil.forEu(crafter.hasActiveRecipe() ? crafter.getBaseRecipeEu() : requested);
     }
 }

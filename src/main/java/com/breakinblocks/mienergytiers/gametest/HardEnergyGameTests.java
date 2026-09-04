@@ -2,6 +2,7 @@ package com.breakinblocks.mienergytiers.gametest;
 
 import aztech.modern_industrialization.api.energy.CableTier;
 import aztech.modern_industrialization.api.energy.MIEnergyStorage;
+import com.breakinblocks.mienergytiers.energy.AmperagePolicy;
 import com.breakinblocks.mienergytiers.energy.EnergyTransferContext;
 import com.breakinblocks.mienergytiers.energy.ExternalEnergyPolicy;
 import com.breakinblocks.mienergytiers.energy.TierAwareEndpoint;
@@ -14,6 +15,7 @@ import com.breakinblocks.mienergytiers.power.HardPowerState;
 import com.breakinblocks.mienergytiers.power.InstantaneousPowerBudget;
 import com.breakinblocks.mienergytiers.power.InstantaneousPowerTracker;
 import com.breakinblocks.mienergytiers.power.NetworkPowerPolicy;
+import com.breakinblocks.mienergytiers.power.RecipeVoltagePolicy;
 import com.breakinblocks.mienergytiers.power.UnderpowerPolicy;
 import aztech.modern_industrialization.machines.components.EnergyComponent;
 import aztech.modern_industrialization.util.Simulation;
@@ -23,6 +25,10 @@ import aztech.modern_industrialization.MI;
 import aztech.modern_industrialization.MIFluids;
 import aztech.modern_industrialization.machines.blockentities.ElectricCraftingMachineBlockEntity;
 import aztech.modern_industrialization.machines.blockentities.GeneratorMachineBlockEntity;
+import aztech.modern_industrialization.machines.blockentities.multiblocks.DistillationTowerBlockEntity;
+import aztech.modern_industrialization.machines.blockentities.multiblocks.ElectricBlastFurnaceBlockEntity;
+import aztech.modern_industrialization.machines.blockentities.multiblocks.ElectricCraftingMultiblockBlockEntity;
+import aztech.modern_industrialization.machines.blockentities.multiblocks.FusionReactorBlockEntity;
 import aztech.modern_industrialization.machines.guicomponents.EnergyBar;
 import aztech.modern_industrialization.machines.blockentities.TransformerMachineBlockEntity;
 import aztech.modern_industrialization.pipes.MIPipes;
@@ -132,6 +138,74 @@ public final class HardEnergyGameTests {
         tests.add(test("overclock_is_voltage_bounded", helper -> check(
                 !TierUtil.canSupply(CableTier.LV, 128) && TierUtil.canSupply(CableTier.MV, 128),
                 "overclock bypassed casing voltage")));
+        tests.add(test("voltage_cap_applies_to_every_electric_crafter", helper -> {
+            check(RecipeVoltagePolicy.class.isAssignableFrom(ElectricCraftingMachineBlockEntity.class),
+                    "single-block machines lost the voltage policy");
+            for (Class<?> multiblock : List.of(ElectricCraftingMultiblockBlockEntity.class,
+                    ElectricBlastFurnaceBlockEntity.class, DistillationTowerBlockEntity.class,
+                    FusionReactorBlockEntity.class)) {
+                check(RecipeVoltagePolicy.class.isAssignableFrom(multiblock),
+                        multiblock.getSimpleName() + " lost the voltage policy");
+            }
+        }));
+        tests.add(test("hull_tier_sets_recipe_ceiling", helper -> {
+            check(AmperagePolicy.maxRecipeEu(CableTier.LV, 0) == CableTier.LV.getEu(),
+                    "unupgraded LV hull did not allow one LV amp");
+            check(AmperagePolicy.maxRecipeEu(CableTier.MV, 0) >= 128 && TierUtil.forEu(128) == CableTier.MV,
+                    "unupgraded MV hull could not run an MV recipe");
+            check(AmperagePolicy.maxRecipeEu(CableTier.LV, 0) < 128, "LV hull reached MV voltage");
+        }));
+        tests.add(test("upgrades_buy_amps_at_machine_voltage", helper -> {
+            check(AmperagePolicy.maxRecipeEu(CableTier.LV, 16) == CableTier.LV.getEu(),
+                    "a part-amp upgrade changed the LV ceiling");
+            check(AmperagePolicy.maxRecipeEu(CableTier.LV, 64) == CableTier.LV.getEu() * 3,
+                    "a turbo upgrade did not buy two LV amps");
+            check(AmperagePolicy.maxRecipeEu(CableTier.MV, 128) == CableTier.MV.getEu() * 2,
+                    "a turbo upgrade did not buy one MV amp");
+            check(AmperagePolicy.amps(CableTier.HV, 512) == 1,
+                    "a single highly advanced upgrade bought an HV amp");
+        }));
+        tests.add(test("upgrade_tooltip_math_matches_ceiling", helper -> {
+            check(AmperagePolicy.upgradesPerAmp(CableTier.LV, 16) == 2,
+                    "two advanced upgrades did not make one LV amp");
+            check(AmperagePolicy.upgradesPerAmp(CableTier.MV, 64) == 2,
+                    "two turbo upgrades did not make one MV amp");
+            check(AmperagePolicy.upgradesPerAmp(CableTier.HV, 512) == 2,
+                    "two highly advanced upgrades did not make one HV amp");
+            check(AmperagePolicy.ampsPerUpgrade(CableTier.LV, 64) == 2,
+                    "a turbo upgrade did not report two LV amps");
+            check(AmperagePolicy.ampsPerUpgrade(CableTier.LV, 999999999L)
+                            == AmperagePolicy.maxAmps(CableTier.LV) - 1,
+                    "a quantum upgrade did not report a full LV machine");
+        }));
+        tests.add(test("amps_stop_at_cable_capacity", helper -> {
+            check(AmperagePolicy.maxRecipeEu(CableTier.LV, 1000000000L) == CableTier.LV.getMaxTransfer(),
+                    "LV upgrades exceeded the cable's amperage");
+            check(AmperagePolicy.maxRecipeEu(CableTier.SUPERCONDUCTOR, 999999999L)
+                            == CableTier.SUPERCONDUCTOR.getMaxTransfer(),
+                    "a quantum upgrade did not reach full superconductor amperage");
+        }));
+        tests.add(test("hatch_structure_sets_multiblock_voltage", helper -> {
+            check(TierUtil.effectiveVoltage(List.of()) == null, "a hatchless multiblock had a voltage");
+            check(TierUtil.effectiveVoltage(List.of(CableTier.LV)) == CableTier.LV,
+                    "one LV hatch did not give LV voltage");
+            check(TierUtil.effectiveVoltage(List.of(CableTier.LV, CableTier.LV)) == CableTier.MV,
+                    "two LV hatches did not promote to MV voltage");
+            check(TierUtil.effectiveVoltage(List.of(CableTier.MV, CableTier.MV)) == CableTier.HV,
+                    "two MV hatches did not promote to HV voltage");
+        }));
+        tests.add(test("hatch_capacity_bounds_multiblock_ceiling", helper -> {
+            List<CableTier> singleLv = List.of(CableTier.LV);
+            check(TierUtil.hatchCapacity(singleLv, TierUtil.hatchRoute(singleLv, CableTier.LV)) == 64,
+                    "one LV hatch did not supply two LV amps");
+            List<CableTier> twoLv = List.of(CableTier.LV, CableTier.LV);
+            check(TierUtil.hatchCapacity(twoLv, TierUtil.hatchRoute(twoLv, CableTier.MV)) == CableTier.MV.getEu(),
+                    "two promoted LV hatches did not supply exactly one MV amp");
+            List<CableTier> twoMv = List.of(CableTier.MV, CableTier.MV);
+            long ceiling = Math.min(AmperagePolicy.maxRecipeEu(CableTier.HV, 0),
+                    TierUtil.hatchCapacity(twoMv, TierUtil.hatchRoute(twoMv, CableTier.HV)));
+            check(ceiling == 512, "promoted hatch capacity did not bound the multiblock ceiling");
+        }));
         tests.add(test("external_ingress_requires_tier", helper -> {
             Storage untyped = new Storage();
             TypedStorage typed = new TypedStorage(CableTier.MV);
@@ -208,13 +282,16 @@ public final class HardEnergyGameTests {
                 transaction.commit();
             }
 
-            helper.startSequence().thenIdle(8).thenExecute(() -> {
-                HardEnergyConfig.OVERLOAD_POLICY.set(previous);
-                check(helper.getBlockState(cablePos).isAir(),
-                        "energized destructive overvoltage did not damage the cable");
-                check(!helper.getBlockState(machinePos).isAir(),
-                        "deferred cable overload destroyed the receiving machine");
-            }).thenSucceed();
+            helper.startSequence()
+                    .thenExecuteFor(12, () -> HardEnergyConfig.OVERLOAD_POLICY.set(
+                            HardEnergyConfig.OverloadPolicy.DESTRUCTIVE))
+                    .thenExecute(() -> {
+                        HardEnergyConfig.OVERLOAD_POLICY.set(previous);
+                        check(helper.getBlockState(cablePos).isAir(),
+                                "energized destructive overvoltage did not damage the cable");
+                        check(!helper.getBlockState(machinePos).isAir(),
+                                "deferred cable overload destroyed the receiving machine");
+                    }).thenSucceed();
         }));
         tests.add(test("step_up_transformer_does_not_multiply_throughput", helper -> {
             InstantaneousPowerBudget transformerInput = new InstantaneousPowerBudget();
@@ -431,7 +508,11 @@ public final class HardEnergyGameTests {
     }
 
     private static TestFunction asyncTest(String name, Consumer<GameTestHelper> body) {
-        return new TestFunction("mi_energy_tiers", "mi_energy_tiers." + name, "mi_energy_tiers:empty",
+        return asyncTest("mi_energy_tiers", name, body);
+    }
+
+    private static TestFunction asyncTest(String batch, String name, Consumer<GameTestHelper> body) {
+        return new TestFunction(batch, "mi_energy_tiers." + name, "mi_energy_tiers:empty",
                 StructureUtils.getRotationForRotationSteps(0), 40, 0, true, false, 1, 1, false, body);
     }
 

@@ -40,6 +40,21 @@ public final class TierUtil {
         return lowerHatches >= 2 ? new HatchRoute(lowerTier, required, 4) : null;
     }
 
+    public static @Nullable CableTier effectiveVoltage(Collection<CableTier> inputs) {
+        List<CableTier> tiers = CableTier.allTiers();
+        for (int index = tiers.size() - 1; index >= 0; index--) {
+            if (hatchRoute(inputs, tiers.get(index)) != null) return tiers.get(index);
+        }
+        return null;
+    }
+
+    public static long hatchCapacity(Collection<CableTier> inputs, HatchRoute route) {
+        long hatches = Math.min(inputs.stream().filter(tier -> tier == route.inputTier()).count(), route.maxHatches());
+        if (hatches <= 0) return 0;
+        long perHatch = maxHatchEuPerTick(route.inputTier());
+        return perHatch > Long.MAX_VALUE / hatches ? Long.MAX_VALUE : perHatch * hatches;
+    }
+
     public static long maxHatchEuPerTick(CableTier tier) {
         return tier.getEu() > Long.MAX_VALUE / 2 ? Long.MAX_VALUE : tier.getEu() * 2;
     }

@@ -9,10 +9,12 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ConcurrentHashMap;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.particles.ParticleTypes;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
+import net.minecraft.world.level.Level;
 import net.neoforged.neoforge.event.tick.ServerTickEvent;
 
 /** Queues destructive work so it is never performed while MI iterates a network. */
@@ -64,8 +66,7 @@ public final class OverloadManager {
         }
     }
 
-    private record DamageTarget(net.minecraft.resources.ResourceKey<net.minecraft.world.level.Level> dimension,
-            BlockPos position) {}
+    private record DamageTarget(ResourceKey<Level> dimension, BlockPos position) {}
 
     private record Overload(DamageTarget target, CableTier offered, CableTier accepted) {}
 

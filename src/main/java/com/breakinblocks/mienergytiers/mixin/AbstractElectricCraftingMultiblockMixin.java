@@ -4,11 +4,14 @@ import aztech.modern_industrialization.api.energy.CableTier;
 import aztech.modern_industrialization.api.energy.CableTierHolder;
 import aztech.modern_industrialization.api.machine.holder.EnergyComponentHolder;
 import aztech.modern_industrialization.machines.blockentities.multiblocks.AbstractElectricCraftingMultiblockBlockEntity;
+import aztech.modern_industrialization.machines.components.CrafterComponent;
 import aztech.modern_industrialization.machines.components.EnergyComponent;
+import aztech.modern_industrialization.machines.components.UpgradeComponent;
 import aztech.modern_industrialization.machines.multiblocks.HatchBlockEntity;
 import aztech.modern_industrialization.machines.multiblocks.ShapeMatcher;
 import aztech.modern_industrialization.machines.recipe.MachineRecipe;
 import aztech.modern_industrialization.util.Simulation;
+import com.breakinblocks.mienergytiers.energy.AmperagePolicy;
 import com.breakinblocks.mienergytiers.energy.TierUtil;
 import com.breakinblocks.mienergytiers.power.HardPowerError;
 import com.breakinblocks.mienergytiers.power.HardPowerState;
@@ -20,6 +23,7 @@ import com.breakinblocks.mienergytiers.gui.HardPowerGuiComponent;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import org.jspecify.annotations.Nullable;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.Unique;
@@ -34,7 +38,8 @@ abstract class AbstractElectricCraftingMultiblockMixin implements HardPowerState
 
     @Unique private final HardPowerState miEnergyTiers$powerState = new HardPowerState();
     @Unique private final List<TieredEnergyInput> miEnergyTiers$tieredInputs = new ArrayList<>();
-    @Unique private CableTier miEnergyTiers$requiredTier = CableTier.LV;
+    @Unique private @Nullable CableTier miEnergyTiers$voltage;
+    @Unique private long miEnergyTiers$hatchCapacity;
 
     @Override
     public HardPowerState miEnergyTiers$getHardPowerState() {
@@ -58,6 +63,8 @@ abstract class AbstractElectricCraftingMultiblockMixin implements HardPowerState
     @Inject(method = "onRematch", at = @At("TAIL"))
     private void miEnergyTiers$rebuildHatchTiers(ShapeMatcher matcher, CallbackInfo ci) {
         miEnergyTiers$tieredInputs.clear();
+        miEnergyTiers$voltage = null;
+        miEnergyTiers$hatchCapacity = 0;
         if (!matcher.isMatchSuccessful()) return;
         for (HatchBlockEntity hatch : matcher.getMatchedHatches()) {
             if (hatch instanceof EnergyComponentHolder energyHolder && hatch instanceof CableTierHolder tierHolder
@@ -68,12 +75,25 @@ abstract class AbstractElectricCraftingMultiblockMixin implements HardPowerState
             }
         }
         miEnergyTiers$tieredInputs.sort(Comparator.comparing(TieredEnergyInput::tier));
+
+        List<CableTier> tiers = miEnergyTiers$tieredInputs.stream().map(TieredEnergyInput::tier).toList();
+        miEnergyTiers$voltage = TierUtil.effectiveVoltage(tiers);
+        TierUtil.HatchRoute voltageRoute = miEnergyTiers$voltage == null
+                ? null : TierUtil.hatchRoute(tiers, miEnergyTiers$voltage);
+        miEnergyTiers$hatchCapacity = voltageRoute == null ? 0 : TierUtil.hatchCapacity(tiers, voltageRoute);
+    }
+
+    @Override
+    public long miEnergyTiers$maxRecipeEu() {
+        if (miEnergyTiers$voltage == null) return 0;
+        long upgradeEu = ((AbstractElectricCraftingMultiblockBlockEntity) (Object) this).components
+                .mapOrDefault(UpgradeComponent.class, UpgradeComponent::getAddMaxEUPerTick, 0L);
+        return Math.min(AmperagePolicy.maxRecipeEu(miEnergyTiers$voltage, upgradeEu), miEnergyTiers$hatchCapacity);
     }
 
     @Override
     public boolean miEnergyTiers$isVoltageAllowed(MachineRecipe recipe) {
         CableTier required = TierUtil.forEu(recipe.eu);
-        miEnergyTiers$requiredTier = required;
         TierUtil.HatchRoute route = miEnergyTiers$route(required);
         if (route == null) {
             miEnergyTiers$powerState.update(recipe.eu, 0, required, miEnergyTiers$highestTier(),
@@ -87,14 +107,19 @@ abstract class AbstractElectricCraftingMultiblockMixin implements HardPowerState
     private void miEnergyTiers$atomicHatchDraw(long requested, Simulation simulation,
             CallbackInfoReturnable<Long> cir) {
         long gameTick = ((AbstractElectricCraftingMultiblockBlockEntity) (Object) this).getLevel().getGameTime();
-        CableTier required = TierUtil.forEu(requested);
-        if (required.compareTo(miEnergyTiers$requiredTier) > 0) miEnergyTiers$requiredTier = required;
-        TierUtil.HatchRoute route = miEnergyTiers$route(miEnergyTiers$requiredTier);
+        CableTier required = miEnergyTiers$recipeTier(requested);
+        TierUtil.HatchRoute route = miEnergyTiers$route(required);
         if (route == null) {
             if (simulation == Simulation.ACT) {
-                miEnergyTiers$powerState.update(requested, 0, miEnergyTiers$requiredTier,
+                miEnergyTiers$powerState.update(requested, 0, required,
                         miEnergyTiers$highestTier(), HardPowerError.INVALID_HATCH_TIER);
             }
+            cir.setReturnValue(0L);
+            return;
+        }
+
+        long draw = Math.min(requested, miEnergyTiers$maxRecipeEu());
+        if (draw <= 0) {
             cir.setReturnValue(0L);
             return;
         }
@@ -102,13 +127,13 @@ abstract class AbstractElectricCraftingMultiblockMixin implements HardPowerState
         List<TieredEnergyInput> routedInputs = miEnergyTiers$routedInputs(route, gameTick);
         long available = 0;
         for (TieredEnergyInput input : routedInputs) {
-            long componentAvailable = miEnergyTiers$availableFromHatch(input, requested - available, gameTick);
-            available += Math.min(requested - available, componentAvailable);
-            if (available == requested) break;
+            long componentAvailable = miEnergyTiers$availableFromHatch(input, draw - available, gameTick);
+            available += Math.min(draw - available, componentAvailable);
+            if (available == draw) break;
         }
-        if (available != requested) {
+        if (available != draw) {
             if (simulation == Simulation.ACT) {
-                miEnergyTiers$powerState.update(requested, available, miEnergyTiers$requiredTier, route.inputTier(),
+                miEnergyTiers$powerState.update(draw, available, required, route.inputTier(),
                         HardPowerError.INSUFFICIENT_INSTANTANEOUS_POWER);
             }
             cir.setReturnValue(0L);
@@ -118,19 +143,25 @@ abstract class AbstractElectricCraftingMultiblockMixin implements HardPowerState
         if (simulation == Simulation.ACT) {
             long consumed = 0;
             for (TieredEnergyInput input : routedInputs) {
-                long componentDraw = miEnergyTiers$availableFromHatch(input, requested - consumed, gameTick);
+                long componentDraw = miEnergyTiers$availableFromHatch(input, draw - consumed, gameTick);
                 if (componentDraw > 0 && !InstantaneousPowerTracker.spend(input.energy(), gameTick, componentDraw)) {
                     throw new IllegalStateException("Instantaneous MI hatch budget changed between simulation and commit");
                 }
                 consumed += input.energy().consumeEu(componentDraw, Simulation.ACT);
-                if (consumed == requested) break;
+                if (consumed == draw) break;
             }
-            if (consumed != requested) {
+            if (consumed != draw) {
                 throw new IllegalStateException("MI hatch energy changed between atomic simulation and commit");
             }
-            miEnergyTiers$powerState.clear(requested, requested, miEnergyTiers$requiredTier, route.inputTier());
+            miEnergyTiers$powerState.clear(draw, draw, required, route.inputTier());
         }
-        cir.setReturnValue(requested);
+        cir.setReturnValue(draw);
+    }
+
+    @Unique
+    private CableTier miEnergyTiers$recipeTier(long requested) {
+        CrafterComponent crafter = ((AbstractElectricCraftingMultiblockBlockEntity) (Object) this).getCrafterComponent();
+        return TierUtil.forEu(crafter.hasActiveRecipe() ? crafter.getBaseRecipeEu() : requested);
     }
 
     @Unique
