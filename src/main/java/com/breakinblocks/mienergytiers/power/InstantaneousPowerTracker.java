@@ -13,6 +13,10 @@ public final class InstantaneousPowerTracker {
         budget(component).receive(tick, amount, tier);
     }
 
+    public static synchronized void attach(EnergyComponent component, InstantaneousPowerBudget budget) {
+        BUDGETS.put(component, budget);
+    }
+
     public static synchronized long available(EnergyComponent component, long tick) {
         return budget(component).available(tick);
     }

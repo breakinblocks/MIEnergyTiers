@@ -10,12 +10,19 @@ public final class NetworkPowerPolicy {
         long remaining = tier.getMaxTransfer();
         for (MIEnergyStorage storage : storages) {
             if (remaining == 0) break;
-            long endpointLimit = Math.min(tier.getEu(), remaining);
+            long endpointLimit = Math.min(nominalPacket(tier, storage), remaining);
             long available = Math.max(0, storage.extract(endpointLimit, true));
             offered += Math.min(endpointLimit, available);
             remaining = Math.max(0, tier.getMaxTransfer() - offered);
         }
         return offered;
+    }
+
+    public static long nominalPacket(CableTier tier, MIEnergyStorage source) {
+        long amps = AmperageSource.amperageOf(source);
+        long eu = tier.getEu();
+        if (eu > 0 && amps > Long.MAX_VALUE / eu) return Long.MAX_VALUE;
+        return eu * amps;
     }
 
     private NetworkPowerPolicy() {}

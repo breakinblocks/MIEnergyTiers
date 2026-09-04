@@ -1,0 +1,9 @@
+{
+  "casing": "ev",
+  "default_overlays": {
+    "output": "modern_industrialization:block/overlays/output_energy",
+    "side": "mi_energy_tiers:block/fe_converter/overlay_side",
+    "top": "mi_energy_tiers:block/fe_converter/overlay_top"
+  },
+  "loader": "modern_industrialization:machine"
+}

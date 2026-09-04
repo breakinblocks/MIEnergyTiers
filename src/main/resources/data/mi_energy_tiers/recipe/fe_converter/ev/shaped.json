@@ -1,0 +1,22 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "pattern": [
+    " O ",
+    "IHI",
+    "I I"
+  ],
+  "key": {
+    "H": {
+      "item": "modern_industrialization:highly_advanced_machine_hull"
+    },
+    "I": {
+      "item": "modern_industrialization:annealed_copper_cable"
+    },
+    "O": {
+      "tag": "c:storage_blocks/redstone"
+    }
+  },
+  "result": {
+    "id": "mi_energy_tiers:ev_fe_converter"
+  }
+}

@@ -9,7 +9,13 @@ import com.breakinblocks.mienergytiers.energy.TierAwareEndpoint;
 import com.breakinblocks.mienergytiers.energy.TierUtil;
 import com.breakinblocks.mienergytiers.energy.TransferEndpoint;
 import com.breakinblocks.mienergytiers.config.HardEnergyConfig;
+import com.breakinblocks.mienergytiers.converter.EnergyConverterBlockEntity;
+import com.breakinblocks.mienergytiers.converter.EnergyConverters;
 import com.breakinblocks.mienergytiers.gui.HardPowerGuiComponent;
+import com.breakinblocks.mienergytiers.power.AmperageSource;
+import aztech.modern_industrialization.api.energy.EnergyApi;
+import net.neoforged.neoforge.capabilities.Capabilities;
+import net.neoforged.neoforge.energy.IEnergyStorage;
 import com.breakinblocks.mienergytiers.overload.OverloadManager;
 import com.breakinblocks.mienergytiers.power.HardPowerState;
 import com.breakinblocks.mienergytiers.power.InstantaneousPowerBudget;
@@ -42,6 +48,7 @@ import net.minecraft.core.Direction;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.world.level.GameType;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
 import dev.technici4n.grandpower.api.ILongEnergyStorage;
 import java.util.ArrayList;
 import java.util.List;
@@ -348,6 +355,28 @@ public final class HardEnergyGameTests {
             check(InstantaneousPowerTracker.available(transferred, tick) == 32,
                     "transferred power was not captured by the transformed EnergyComponent");
         }));
+        tests.add(test("network_power_is_shared_by_every_endpoint", helper -> {
+            EnergyTransferContext transfer = new EnergyTransferContext(CableTier.LV,
+                    TransferEndpoint.unknown("LV network"), TransferEndpoint.unknown("LV endpoints"), 0);
+            transfer.setFreshAllowance(32);
+            InstantaneousPowerBudget pool = transfer.sharedBudget();
+            check(pool != null && pool == transfer.sharedBudget(),
+                    "endpoints did not share one network budget");
+            check(pool.available(0) == 32, "shared budget lost the source throughput");
+            check(pool.spend(0, 32), "the machine that drew could not claim the network power");
+            check(pool.available(0) == 0 && !pool.spend(0, 32),
+                    "the same network power was handed to a second machine");
+        }));
+        tests.add(test("idle_machine_stops_hoarding_network_power", helper -> {
+            BlockPos position = new BlockPos(0, 1, 0);
+            helper.setBlock(position, BuiltInRegistries.BLOCK.get(MI.id("electrolyzer")));
+            ElectricCraftingMachineBlockEntity machine = helper.getBlockEntity(position);
+            EnergyComponent energy = machine.getEnergyComponent();
+            check(energy.insertEu(32, Simulation.ACT) == 32,
+                    "idle machine refused its first tick of power");
+            check(energy.insertEu(32, Simulation.ACT) == 0,
+                    "idle machine kept absorbing past one tick of its own draw");
+        }));
         tests.add(test("network_buffering_does_not_create_fresh_power", helper -> {
             EnergyTransferContext transfer = new EnergyTransferContext(CableTier.LV,
                     TransferEndpoint.unknown("buffered cable network"),
@@ -428,6 +457,41 @@ public final class HardEnergyGameTests {
                     "full machine buffer deadlocked despite connected LV generation"))
                     .thenSucceed();
         }));
+        tests.add(longAsyncTest("idle_neighbours_do_not_starve_a_running_machine", helper -> {
+            BlockPos generatorPos = new BlockPos(0, 1, 0);
+            BlockPos cablePos = new BlockPos(1, 1, 0);
+            BlockPos activePos = new BlockPos(2, 1, 0);
+            helper.setBlock(generatorPos, BuiltInRegistries.BLOCK.get(MI.id("lv_diesel_generator")));
+            helper.setBlock(activePos, BuiltInRegistries.BLOCK.get(MI.id("electrolyzer")));
+            helper.setBlock(new BlockPos(1, 2, 0), BuiltInRegistries.BLOCK.get(MI.id("electrolyzer")));
+            helper.setBlock(new BlockPos(1, 1, 1), BuiltInRegistries.BLOCK.get(MI.id("electrolyzer")));
+            GeneratorMachineBlockEntity generator = helper.getBlockEntity(generatorPos);
+            generator.orientation.outputDirection = Direction.EAST;
+            ElectricCraftingMachineBlockEntity active = helper.getBlockEntity(activePos);
+            check(active.getInventory().itemStorage.itemHandler
+                            .insertItem(0, new ItemStack(Items.LIME_WOOL, 4), false).isEmpty(),
+                    "could not insert lime wool into the electrolyzer");
+
+            PipeNetworkType cableType = PipeNetworkType.get(MI.id("copper_cable"));
+            helper.setBlock(cablePos, MIPipes.BLOCK_PIPE.get());
+            PipeBlockEntity cable = helper.getBlockEntity(cablePos);
+            cable.addPipe(cableType, MIPipes.INSTANCE.getPipeItem(cableType).defaultData);
+            helper.getLevel().blockUpdated(helper.absolutePos(cablePos), Blocks.AIR);
+            var player = helper.makeMockPlayer(GameType.SURVIVAL);
+            for (Direction side : List.of(Direction.WEST, Direction.EAST, Direction.UP, Direction.SOUTH)) {
+                cable.addConnection(player, cableType, side);
+            }
+
+            try (Transaction transaction = Transaction.openRoot()) {
+                generator.getInventory().fluidStorage.insert(MIFluids.BIODIESEL.variant(), 4000, transaction);
+                transaction.commit();
+            }
+            helper.startSequence().thenIdle(60).thenExecute(() -> check(
+                            active.getCrafterComponent().getProgress() > 0.15F,
+                            "idle neighbours starved the running machine, progress was "
+                                    + active.getCrafterComponent().getProgress()))
+                    .thenSucceed();
+        }));
         tests.add(asyncTest("underpower_decay_modes_retain_or_waste_inputs", helper -> {
             BlockPos generatorPos = new BlockPos(0, 1, 0);
             BlockPos cablePos = new BlockPos(1, 1, 0);
@@ -491,7 +555,84 @@ public final class HardEnergyGameTests {
             check(loaded.energy == savedEnergy && loaded.progress == savedProgress && loaded.total == original.total,
                     "reload duplicated or discarded state");
         }));
+        tests.add(test("fe_converter_faces_are_typed", helper -> {
+            BlockPos pos = new BlockPos(0, 1, 0);
+            EnergyConverterBlockEntity converter = placeConverter(helper, pos, CableTier.LV);
+            BlockPos absolute = helper.absolutePos(pos);
+            MIEnergyStorage output = helper.getLevel().getCapability(EnergyApi.SIDED, absolute, Direction.EAST);
+            check(output != null && output.canConnect(CableTier.LV) && !output.canConnect(CableTier.MV),
+                    "the output face was not an LV endpoint");
+            check(!converter.miStorage(Direction.WEST).canConnect(CableTier.LV), "an FE face accepted an MI cable");
+            try (var ignored = context(CableTier.LV)) {
+                MIEnergyStorage feFace = helper.getLevel().getCapability(EnergyApi.SIDED, absolute, Direction.WEST);
+                check(feFace != null && !feFace.canConnect(CableTier.LV),
+                        "MI's energy compat wrapper let a network reach an FE face");
+            }
+            check(helper.getLevel().getCapability(Capabilities.EnergyStorage.BLOCK, absolute, Direction.EAST) == null,
+                    "the output face exposed FE");
+            IEnergyStorage fe = helper.getLevel().getCapability(Capabilities.EnergyStorage.BLOCK, absolute, Direction.WEST);
+            int ratio = (int) EnergyConverterBlockEntity.forgeEnergyPerEu();
+            int accepted = fe == null ? -1 : fe.receiveEnergy(64 * ratio, false);
+            check(accepted == 64 * ratio, "FE was refused on an input face: provider="
+                    + (fe == null ? "null" : fe.getClass().getName()) + " accepted=" + accepted + " ratio=" + ratio);
+            check(converter.energy().getEu() == 64, "received FE did not become EU at the configured ratio");
+            try (var ignored = context(CableTier.LV)) {
+                check(!fe.canReceive() && fe.receiveEnergy(64, false) == 0, "an FE face took power from an MI transfer");
+            }
+            check(!output.canReceive() && output.receive(32, false) == 0, "the output face accepted EU");
+            check(fe.extractEnergy(64, false) == 0, "an FE face gave EU back out as FE");
+        }));
+        tests.add(test("fe_converter_moves_at_most_four_amps_per_tick", helper -> {
+            BlockPos pos = new BlockPos(0, 1, 0);
+            EnergyConverterBlockEntity converter = placeConverter(helper, pos, CableTier.LV);
+            BlockPos absolute = helper.absolutePos(pos);
+            long perTick = EnergyConverterBlockEntity.maxEuPerTick(CableTier.LV);
+            check(perTick == CableTier.LV.getEu() * EnergyConverterBlockEntity.AMPS, "the LV ceiling is not four amps");
+            check(converter.energy().insertEu(2000, Simulation.ACT) == 2000, "could not fill the converter buffer");
+            MIEnergyStorage output = helper.getLevel().getCapability(EnergyApi.SIDED, absolute, Direction.EAST);
+            check(output.extract(1000, true) == perTick, "a simulated draw exceeded four amps");
+            check(output.extract(1000, false) == perTick, "a draw exceeded four amps");
+            check(output.extract(1000, false) == 0, "a second draw in the same tick was served");
+            IEnergyStorage fe = helper.getLevel().getCapability(Capabilities.EnergyStorage.BLOCK, absolute, Direction.UP);
+            long ratio = EnergyConverterBlockEntity.forgeEnergyPerEu();
+            check(fe.receiveEnergy(100000, true) == perTick * ratio, "FE intake exceeded four amps");
+        }));
+        tests.add(test("network_policy_honours_declared_amperage", helper -> {
+            MIStorage plain = new MIStorage(Long.MAX_VALUE);
+            check(AmperageSource.amperageOf(plain) == 1, "a plain source declared amperage");
+            check(NetworkPowerPolicy.nominalSourceThroughput(List.of(plain), CableTier.LV) == CableTier.LV.getEu(),
+                    "a plain source offered more than one amp");
+            BlockPos pos = new BlockPos(0, 1, 0);
+            EnergyConverterBlockEntity converter = placeConverter(helper, pos, CableTier.LV);
+            converter.energy().insertEu(2000, Simulation.ACT);
+            MIEnergyStorage output = helper.getLevel().getCapability(EnergyApi.SIDED, helper.absolutePos(pos), Direction.EAST);
+            check(AmperageSource.amperageOf(output) == EnergyConverterBlockEntity.AMPS, "the converter did not declare four amps");
+            check(NetworkPowerPolicy.nominalSourceThroughput(List.of(output), CableTier.LV)
+                            == CableTier.LV.getEu() * EnergyConverterBlockEntity.AMPS,
+                    "the network policy ignored the converter's amperage");
+        }));
+        tests.add(test("fe_converter_direct_output_is_fresh_power", helper -> {
+            BlockPos pos = new BlockPos(0, 1, 0);
+            BlockPos machinePos = new BlockPos(1, 1, 0);
+            EnergyConverterBlockEntity converter = placeConverter(helper, pos, CableTier.LV);
+            helper.setBlock(machinePos, BuiltInRegistries.BLOCK.get(MI.id("electrolyzer")));
+            ElectricCraftingMachineBlockEntity machine = helper.getBlockEntity(machinePos);
+            converter.energy().insertEu(2000, Simulation.ACT);
+            converter.tick();
+            long fresh = InstantaneousPowerTracker.available(machine.getEnergyComponent(), helper.getLevel().getGameTime());
+            check(fresh == EnergyConverterBlockEntity.maxEuPerTick(CableTier.LV),
+                    "direct output did not arrive as four amps of fresh LV power, got " + fresh);
+        }));
         return tests;
+    }
+
+    private static EnergyConverterBlockEntity placeConverter(GameTestHelper helper, BlockPos pos, CableTier tier) {
+        EnergyConverters.Converter converter = EnergyConverters.get(tier);
+        check(converter != null, "no " + tier.name + " converter was registered");
+        helper.setBlock(pos, converter.block().get());
+        EnergyConverterBlockEntity blockEntity = helper.getBlockEntity(pos);
+        blockEntity.orientation.outputDirection = Direction.EAST;
+        return blockEntity;
     }
 
     private static TestFunction test(String name, Consumer<GameTestHelper> body) {
@@ -509,6 +650,11 @@ public final class HardEnergyGameTests {
 
     private static TestFunction asyncTest(String name, Consumer<GameTestHelper> body) {
         return asyncTest("mi_energy_tiers", name, body);
+    }
+
+    private static TestFunction longAsyncTest(String name, Consumer<GameTestHelper> body) {
+        return new TestFunction("mi_energy_tiers", "mi_energy_tiers." + name, "mi_energy_tiers:empty",
+                StructureUtils.getRotationForRotationSteps(0), 120, 0, true, false, 1, 1, false, body);
     }
 
     private static TestFunction asyncTest(String batch, String name, Consumer<GameTestHelper> body) {

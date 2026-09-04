@@ -11,5 +11,13 @@
   "mi_energy_tiers.tooltip.upgrade.per_item": "%s: +%s amps each",
   "mi_energy_tiers.tooltip.upgrade.per_amp": "%s: %s for +1 amp",
   "mi_energy_tiers.tooltip.upgrade.full": "%s: fills all %s amps",
-  "mi_energy_tiers.tooltip.shift": "Hold Shift for amps by voltage"
+  "mi_energy_tiers.tooltip.shift": "Hold Shift for amps by voltage",
+  "block.mi_energy_tiers.lv_fe_converter": "LV FE Converter",
+  "block.mi_energy_tiers.mv_fe_converter": "MV FE Converter",
+  "block.mi_energy_tiers.hv_fe_converter": "HV FE Converter",
+  "block.mi_energy_tiers.ev_fe_converter": "EV FE Converter",
+  "block.mi_energy_tiers.superconductor_fe_converter": "SV FE Converter",
+  "mi_energy_tiers.tooltip.converter.voltage": "Converts FE into %s EU (%s EU/t per amp)",
+  "mi_energy_tiers.tooltip.converter.amps": "Up to %s amps: %s EU/t",
+  "mi_energy_tiers.tooltip.converter.faces": "Accepts FE on every face except the output face, which carries EU"
 }

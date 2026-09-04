@@ -1,6 +1,7 @@
 package com.breakinblocks.mienergytiers.energy;
 
 import aztech.modern_industrialization.api.energy.CableTier;
+import com.breakinblocks.mienergytiers.power.InstantaneousPowerBudget;
 import java.util.ArrayDeque;
 import java.util.LinkedHashSet;
 import java.util.Deque;
@@ -18,6 +19,7 @@ public final class EnergyTransferContext {
     private final long gameTick;
     // Direct transfers are fully fresh. Networks replace this with their actual extraction for the tick.
     private long freshAllowance = Long.MAX_VALUE;
+    private @Nullable InstantaneousPowerBudget sharedBudget;
     private long networkPowerOffered;
     private final Set<OverloadCandidate> overloadCandidates = new LinkedHashSet<>();
 
@@ -35,6 +37,16 @@ public final class EnergyTransferContext {
 
     public synchronized void setFreshAllowance(long amount) {
         freshAllowance = Math.max(0, amount);
+        sharedBudget = null;
+    }
+
+    public synchronized @Nullable InstantaneousPowerBudget sharedBudget() {
+        if (freshAllowance == Long.MAX_VALUE) return null;
+        if (sharedBudget == null) {
+            sharedBudget = new InstantaneousPowerBudget();
+            sharedBudget.receive(gameTick, freshAllowance, tier);
+        }
+        return sharedBudget;
     }
 
     public synchronized long claimFresh(long received) {

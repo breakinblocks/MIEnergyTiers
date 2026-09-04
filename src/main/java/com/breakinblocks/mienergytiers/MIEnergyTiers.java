@@ -2,6 +2,7 @@ package com.breakinblocks.mienergytiers;
 
 import com.mojang.logging.LogUtils;
 import com.breakinblocks.mienergytiers.config.HardEnergyConfig;
+import com.breakinblocks.mienergytiers.converter.EnergyConverters;
 import com.breakinblocks.mienergytiers.gametest.HardEnergyGameTests;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.fml.ModContainer;
@@ -24,6 +25,7 @@ public final class MIEnergyTiers {
         modBus.addListener((RegisterGameTestsEvent event) -> event.register(HardEnergyGameTests.class));
         NeoForge.EVENT_BUS.addListener(OverloadManager::afterServerTick);
         verifyModernIndustrializationVersion();
+        EnergyConverters.register(modBus);
     }
 
     private static void verifyModernIndustrializationVersion() {

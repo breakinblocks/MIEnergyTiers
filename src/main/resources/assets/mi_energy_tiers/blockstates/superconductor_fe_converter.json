@@ -1,0 +1,7 @@
+{
+  "variants": {
+    "": {
+      "model": "mi_energy_tiers:block/superconductor_fe_converter"
+    }
+  }
+}

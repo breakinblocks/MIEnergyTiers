@@ -1,0 +1,25 @@
+{
+  "type": "modern_industrialization:assembler",
+  "eu": 8,
+  "duration": 200,
+  "item_inputs": [
+    {
+      "amount": 1,
+      "item": "modern_industrialization:basic_machine_hull"
+    },
+    {
+      "amount": 4,
+      "item": "modern_industrialization:tin_cable"
+    },
+    {
+      "amount": 1,
+      "tag": "c:storage_blocks/redstone"
+    }
+  ],
+  "item_outputs": [
+    {
+      "amount": 1,
+      "item": "mi_energy_tiers:lv_fe_converter"
+    }
+  ]
+}

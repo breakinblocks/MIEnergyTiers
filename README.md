@@ -11,6 +11,7 @@ MI Energy Tiers is a NeoForge 1.21.1 addon for Modern Industrialization 2.5.6. I
 - Overclocking is bounded by the same ceiling. A machine speeds up until it draws its full amperage and no further, and it never stalls for asking beyond its tier.
 - Multiblocks take voltage and throughput from their energy input hatches. Each hatch supplies up to two amps of its own tier, and 2 to 4 hatches from the tier directly below a recipe may bootstrap the next voltage tier. Promotion cannot cascade across several tiers, and a multiblock never promises more EU/t than its hatches can deliver.
 - Transformers retain their destination voltage classification, while untyped FE/GrandPower input is rejected by default. MI-to-FE export remains available.
+- FE Converters are the one sanctioned way in. There is one per cable tier; it takes FE on every face except its output face and emits EU of its own tier from that face, at most four amps per tick. It connects only to cables and machines of its exact tier.
 - Machine GUIs use a lightning indicator: red means usable power is arriving (or an active recipe has its full EU/t), while gray means disconnected, invalid, or underpowered. Jade also reports live input such as `Input: 32 EU/t`.
 
 This is deliberately GregTech-inspired rather than a full packet-and-amperage simulation. MI keeps its existing EU storage and transfer APIs, recipes, cable values, and general machine behavior; the addon adds strict voltage provenance and all-or-nothing crafting draws around them.
@@ -43,6 +44,22 @@ Things worth knowing:
 - Multiblock ceilings are also capped by hatch capacity. Two LV hatches promoted to MV supply exactly one MV amp, which is 128 EU/t.
 - The fusion reactor asks for 128,000 EU/t, more than any route built from EV hatches can carry, so it needs at least one superconductor energy input hatch.
 - MI's quantum armor recipes ask for 1,000,000 EU/t, so the packer running them needs a quantum machine hull.
+
+## FE Converters
+
+Each cable tier gets an `<tier>_fe_converter`. The block is an ordinary MI machine (wrench to turn the output face, GUI shows the buffer), so it renders with that tier's casing and sits in MI's creative tab. FE is accepted through NeoForge or GrandPower energy capabilities on every face but the output face, converted at MI's `forgeEnergyPerEu` ratio, and buffered for one second of full output.
+
+| Converter | Output | Ceiling |
+| --- | --- | --- |
+| LV | 32 EU/t per amp | 128 EU/t |
+| MV | 128 EU/t per amp | 512 EU/t |
+| HV | 512 EU/t per amp | 2,048 EU/t |
+| EV | 2,048 EU/t per amp | 8,192 EU/t |
+| Superconductor | 128,000,000 EU/t per amp | 512,000,000 EU/t |
+
+Both intake and output are capped at four amps of the tier per tick, so a converter can never launder buffered FE into a burst. The cable network and direct machine output both count the converter as a four-amp source, where every other source is one amp.
+
+The recipe mirrors the transformer of the same tier: the tier's machine hull, four of the tier's cables and a redstone block, by hand or in the assembler. Tiers added by other mods or by KubeJS get a converter block automatically; whoever adds the tier supplies its blockstate, block and item models (the MI machine model loader with that tier's casing), the `block.mi_energy_tiers.<tier>_fe_converter` lang entry, the pickaxe block tags and a recipe.
 
 ## Configuration
 

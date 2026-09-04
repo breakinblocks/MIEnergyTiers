@@ -18,6 +18,7 @@ import net.minecraft.core.Direction;
 import net.minecraft.server.level.ServerLevel;
 import com.breakinblocks.mienergytiers.overload.OverloadManager;
 import com.breakinblocks.mienergytiers.power.InstantaneousPowerTracker;
+import com.breakinblocks.mienergytiers.power.NetworkPowerPolicy;
 import org.spongepowered.asm.mixin.Mixin;
 
 @Mixin(EnergyHelper.class)
@@ -39,7 +40,8 @@ abstract class EnergyHelperMixin {
         var destinationEndpoint = new TransferEndpoint(level.dimension(), destinationPos, "adjacent energy endpoint");
         var transferContext = new EnergyTransferContext(
                 output, sourceEndpoint, destinationEndpoint, level.getGameTime());
-        transferContext.setFreshAllowance(Math.max(0, source.extract(output.getEu(), true)));
+        transferContext.setFreshAllowance(Math.max(0,
+                source.extract(NetworkPowerPolicy.nominalPacket(output, source), true)));
         try (var ignored = EnergyTransferContext.push(transferContext)) {
             if (machine instanceof TransformerMachineBlockEntity
                     && machine instanceof EnergyComponentHolder holder

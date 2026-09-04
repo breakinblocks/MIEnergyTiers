@@ -6,6 +6,7 @@ import aztech.modern_industrialization.api.energy.EnergyApi;
 import aztech.modern_industrialization.api.energy.MIEnergyStorage;
 import aztech.modern_industrialization.pipes.electricity.ElectricityNetworkNode;
 import com.breakinblocks.mienergytiers.config.HardEnergyConfig;
+import com.breakinblocks.mienergytiers.converter.EnergyConverterBlockEntity;
 import com.breakinblocks.mienergytiers.energy.EnergyTransferContext;
 import java.util.List;
 import net.minecraft.core.BlockPos;
@@ -27,6 +28,9 @@ abstract class ElectricityNetworkNodeMixin {
             target = "Laztech/modern_industrialization/api/energy/MIEnergyStorage;canConnect(Laztech/modern_industrialization/api/energy/CableTier;)Z"))
     private boolean miEnergyTiers$allowDestructiveOvervoltageConnection(MIEnergyStorage storage, CableTier offered,
             Level world, BlockPos cablePos, Direction direction) {
+        if (world.getBlockEntity(cablePos.relative(direction)) instanceof EnergyConverterBlockEntity converter) {
+            return converter.miStorage(direction.getOpposite()).canConnect(offered);
+        }
         boolean connects = storage.canConnect(offered);
         if (connects || HardEnergyConfig.OVERLOAD_POLICY.get() != HardEnergyConfig.OverloadPolicy.DESTRUCTIVE) {
             return connects;

@@ -1,14 +1,18 @@
 package com.breakinblocks.mienergytiers.mixin;
 
+import aztech.modern_industrialization.machines.blockentities.ElectricCraftingMachineBlockEntity;
 import aztech.modern_industrialization.machines.components.EnergyComponent;
 import aztech.modern_industrialization.machines.blockentities.TransformerMachineBlockEntity;
 import aztech.modern_industrialization.util.Simulation;
 import com.breakinblocks.mienergytiers.energy.EnergyTransferContext;
+import com.breakinblocks.mienergytiers.power.InstantaneousPowerBudget;
 import com.breakinblocks.mienergytiers.power.InstantaneousPowerTracker;
+import com.breakinblocks.mienergytiers.power.RecipeVoltagePolicy;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
+import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.ModifyVariable;
@@ -18,15 +22,33 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 abstract class EnergyComponentMixin {
     @Shadow @Final private BlockEntity blockEntity;
 
+    @Inject(method = "insertEu", at = @At("HEAD"), cancellable = true)
+    private void miEnergyTiers$refuseIdleHoarding(long maximum, Simulation simulation,
+            CallbackInfoReturnable<Long> cir) {
+        if (!(blockEntity instanceof ElectricCraftingMachineBlockEntity machine)) return;
+        if (machine.getCrafterComponent().hasActiveRecipe()) return;
+        if (((EnergyComponent) (Object) this).getEu()
+                < ((RecipeVoltagePolicy) machine).miEnergyTiers$maxRecipeEu()) return;
+        miEnergyTiers$recordSource(maximum);
+        cir.setReturnValue(0L);
+    }
+
     @Inject(method = "insertEu", at = @At("RETURN"))
     private void miEnergyTiers$recordFreshPower(long maximum, Simulation simulation,
             CallbackInfoReturnable<Long> cir) {
+        miEnergyTiers$recordSource(maximum);
+    }
+
+    @Unique
+    private void miEnergyTiers$recordSource(long maximum) {
         if (maximum <= 0 || blockEntity.getLevel() == null) return;
         EnergyTransferContext context = EnergyTransferContext.current();
         if (context == null) return;
-        // MI simulates every target before acting. Reserve source-backed throughput during that
-        // simulation even when a full target accepts zero EU, avoiding a full-buffer deadlock.
-        // The shared transfer context makes later simulation/acting calls see the reduced budget.
+        InstantaneousPowerBudget shared = context.sharedBudget();
+        if (shared != null) {
+            InstantaneousPowerTracker.attach((EnergyComponent) (Object) this, shared);
+            return;
+        }
         long fresh = context.claimFresh(maximum);
         if (fresh == 0) return;
         InstantaneousPowerTracker.receive((EnergyComponent) (Object) this, blockEntity.getLevel().getGameTime(),
