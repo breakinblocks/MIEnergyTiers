@@ -1,6 +1,6 @@
 # MI Energy Tiers
 
-MI Energy Tiers is a NeoForge 1.21.1 addon for Modern Industrialization 2.5.6. It makes MI's electric progression behave more like GregTech: voltage tier and available EU/t matter, not just how much energy happens to be stored in a machine.
+MI Energy Tiers is a NeoForge 1.21.1 addon for Modern Industrialization 2.5.8 or later. It makes MI's electric progression behave more like GregTech: voltage tier and available EU/t matter, not just how much energy happens to be stored in a machine.
 
 ## What changes
 
