@@ -2,6 +2,25 @@
 
 MI Energy Tiers is a NeoForge 1.21.1 addon for Modern Industrialization 2.5.8 or later. It makes MI's electric progression behave more like GregTech: voltage tier and available EU/t matter, not just how much energy happens to be stored in a machine.
 
+## Compatibility
+
+| Component | Version |
+| --- | --- |
+| Minecraft | 1.21.1 |
+| NeoForge | 21.1.219 or newer |
+| Modern Industrialization | 2.5.6 |
+| Grand Power | 3.x |
+
+JEI and Jade are included in the development runtime for recipe and power
+inspection. They are not bundled with the release jar.
+
+## Installation
+
+Install NeoForge for Minecraft 1.21.1, Modern Industrialization 2.5.6, and Grand
+Power 3.x. Place the MI Energy Tiers jar in the `mods` folder on both the server
+and every connecting client. The versions and mod set must match when joining a
+server.
+
 ## What changes
 
 - Electric recipes draw their complete EU/t atomically. If a machine needs 128 EU/t but receives only 96 EU/t, it consumes nothing and cannot gain normal progress.
