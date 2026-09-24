@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.0.3
+
+### Fixed
+
+- Tesseract API detection now checks the loaded mod list so the Tesseract mixins are applied or skipped based on whether the mod
+  is actually installed.
+
 ## 1.0.2
 
 ### Added
