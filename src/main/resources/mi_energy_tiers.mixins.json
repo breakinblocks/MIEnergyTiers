@@ -14,9 +14,11 @@
     "EnergyComponentMixin",
     "JadeEnergyProviderMixin",
     "MachineBlockEntityAccessor",
-    "WrappedExternalStorageMixin"
+    "WrappedExternalStorageMixin",
+    "tesseract.ElectricMultipliedCraftingMultiblockMixin"
   ],
   "injectors": {
     "defaultRequire": 1
-  }
+  },
+  "plugin": "com.breakinblocks.mienergytiers.mixin.MIEnergyTiersMixinPlugin"
 }

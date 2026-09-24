@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.0.2
+
+### Added
+
+- Voltage enforcement now covers Tesseract API multiplied ("batch") multiblocks, which MI Tweaks
+  registers.
+- A mixin config plugin, so the Tesseract mixins are skipped when that API is not installed.
+
 ## 1.0.1
 
 - Added FE Converters, one per cable tier. FE goes in on any face except the output face and comes out as EU of that tier, up to four amps per tick. They are crafted like the transformer of the same tier, with a redstone block in place of the second cable.
