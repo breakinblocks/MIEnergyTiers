@@ -1,7 +1,6 @@
 package com.breakinblocks.mienergytiers.mixin;
 
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 import net.neoforged.fml.loading.LoadingModList;
 import org.objectweb.asm.tree.ClassNode;
@@ -10,7 +9,7 @@ import org.spongepowered.asm.mixin.extensibility.IMixinInfo;
 
 /**
  * Keeps the optional-target mixins out of the way when the mod they target at is not installed.
- 
+ *
  */
 public final class MIEnergyTiersMixinPlugin implements IMixinConfigPlugin {
     private static final String TESSERACT_PACKAGE = "com.breakinblocks.mienergytiers.mixin.tesseract.";
@@ -19,8 +18,7 @@ public final class MIEnergyTiersMixinPlugin implements IMixinConfigPlugin {
     private Boolean tesseractPresent;
 
     @Override
-    public void onLoad(String mixinPackage) {
-    }
+    public void onLoad(String mixinPackage) {}
 
     @Override
     public String getRefMapperConfig() {
@@ -36,8 +34,7 @@ public final class MIEnergyTiersMixinPlugin implements IMixinConfigPlugin {
     }
 
     @Override
-    public void acceptTargets(Set<String> myTargets, Set<String> otherTargets) {
-    }
+    public void acceptTargets(Set<String> myTargets, Set<String> otherTargets) {}
 
     @Override
     public List<String> getMixins() {
@@ -45,12 +42,10 @@ public final class MIEnergyTiersMixinPlugin implements IMixinConfigPlugin {
     }
 
     @Override
-    public void preApply(String targetClassName, ClassNode targetClass, String mixinClassName, IMixinInfo info) {
-    }
+    public void preApply(String targetClassName, ClassNode targetClass, String mixinClassName, IMixinInfo info) {}
 
     @Override
-    public void postApply(String targetClassName, ClassNode targetClass, String mixinClassName, IMixinInfo info) {
-    }
+    public void postApply(String targetClassName, ClassNode targetClass, String mixinClassName, IMixinInfo info) {}
 
     private boolean tesseractPresent() {
         if (tesseractPresent == null) {

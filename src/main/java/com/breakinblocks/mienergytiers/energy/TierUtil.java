@@ -19,8 +19,10 @@ public final class TierUtil {
     }
 
     public static @Nullable CableTier routeTier(Collection<CableTier> inputs, CableTier required) {
-        return inputs.stream().filter(tier -> tier.compareTo(required) >= 0)
-                .min(Comparator.naturalOrder()).orElse(null);
+        return inputs.stream()
+                .filter(tier -> tier.compareTo(required) >= 0)
+                .min(Comparator.naturalOrder())
+                .orElse(null);
     }
 
     /**
@@ -49,7 +51,8 @@ public final class TierUtil {
     }
 
     public static long hatchCapacity(Collection<CableTier> inputs, HatchRoute route) {
-        long hatches = Math.min(inputs.stream().filter(tier -> tier == route.inputTier()).count(), route.maxHatches());
+        long hatches = Math.min(
+                inputs.stream().filter(tier -> tier == route.inputTier()).count(), route.maxHatches());
         if (hatches <= 0) return 0;
         long perHatch = maxHatchEuPerTick(route.inputTier());
         return perHatch > Long.MAX_VALUE / hatches ? Long.MAX_VALUE : perHatch * hatches;

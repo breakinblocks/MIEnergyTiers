@@ -1,8 +1,8 @@
 package com.breakinblocks.mienergytiers.mixin;
 
 import aztech.modern_industrialization.machines.blockentities.ElectricCraftingMachineBlockEntity;
-import aztech.modern_industrialization.machines.components.EnergyComponent;
 import aztech.modern_industrialization.machines.blockentities.TransformerMachineBlockEntity;
+import aztech.modern_industrialization.machines.components.EnergyComponent;
 import aztech.modern_industrialization.util.Simulation;
 import com.breakinblocks.mienergytiers.energy.EnergyTransferContext;
 import com.breakinblocks.mienergytiers.power.InstantaneousPowerBudget;
@@ -20,22 +20,23 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 @Mixin(EnergyComponent.class)
 abstract class EnergyComponentMixin {
-    @Shadow @Final private BlockEntity blockEntity;
+    @Shadow
+    @Final
+    private BlockEntity blockEntity;
 
     @Inject(method = "insertEu", at = @At("HEAD"), cancellable = true)
-    private void miEnergyTiers$refuseIdleHoarding(long maximum, Simulation simulation,
-            CallbackInfoReturnable<Long> cir) {
+    private void miEnergyTiers$refuseIdleHoarding(
+            long maximum, Simulation simulation, CallbackInfoReturnable<Long> cir) {
         if (!(blockEntity instanceof ElectricCraftingMachineBlockEntity machine)) return;
         if (machine.getCrafterComponent().hasActiveRecipe()) return;
-        if (((EnergyComponent) (Object) this).getEu()
-                < ((RecipeVoltagePolicy) machine).miEnergyTiers$maxRecipeEu()) return;
+        if (((EnergyComponent) (Object) this).getEu() < ((RecipeVoltagePolicy) machine).miEnergyTiers$maxRecipeEu())
+            return;
         miEnergyTiers$recordSource(maximum);
         cir.setReturnValue(0L);
     }
 
     @Inject(method = "insertEu", at = @At("RETURN"))
-    private void miEnergyTiers$recordFreshPower(long maximum, Simulation simulation,
-            CallbackInfoReturnable<Long> cir) {
+    private void miEnergyTiers$recordFreshPower(long maximum, Simulation simulation, CallbackInfoReturnable<Long> cir) {
         miEnergyTiers$recordSource(maximum);
     }
 
@@ -51,26 +52,31 @@ abstract class EnergyComponentMixin {
         }
         long fresh = context.claimFresh(maximum);
         if (fresh == 0) return;
-        InstantaneousPowerTracker.receive((EnergyComponent) (Object) this, blockEntity.getLevel().getGameTime(),
-                fresh, context.tier());
+        InstantaneousPowerTracker.receive(
+                (EnergyComponent) (Object) this, blockEntity.getLevel().getGameTime(), fresh, context.tier());
     }
 
     @ModifyVariable(method = "consumeEu", at = @At("HEAD"), argsOnly = true, ordinal = 0)
     private long miEnergyTiers$capTransformerOutput(long maximum) {
-        if (!(blockEntity instanceof TransformerMachineBlockEntity) || blockEntity.getLevel() == null
+        if (!(blockEntity instanceof TransformerMachineBlockEntity)
+                || blockEntity.getLevel() == null
                 || EnergyTransferContext.current() == null) return maximum;
-        return Math.min(maximum, InstantaneousPowerTracker.available(
-                (EnergyComponent) (Object) this, blockEntity.getLevel().getGameTime()));
+        return Math.min(
+                maximum,
+                InstantaneousPowerTracker.available(
+                        (EnergyComponent) (Object) this, blockEntity.getLevel().getGameTime()));
     }
 
     @Inject(method = "consumeEu", at = @At("RETURN"))
-    private void miEnergyTiers$spendTransformerInputBudget(long maximum, Simulation simulation,
-            CallbackInfoReturnable<Long> cir) {
-        if (simulation != Simulation.ACT || cir.getReturnValue() <= 0
-                || !(blockEntity instanceof TransformerMachineBlockEntity) || blockEntity.getLevel() == null
+    private void miEnergyTiers$spendTransformerInputBudget(
+            long maximum, Simulation simulation, CallbackInfoReturnable<Long> cir) {
+        if (simulation != Simulation.ACT
+                || cir.getReturnValue() <= 0
+                || !(blockEntity instanceof TransformerMachineBlockEntity)
+                || blockEntity.getLevel() == null
                 || EnergyTransferContext.current() == null) return;
-        if (!InstantaneousPowerTracker.spend((EnergyComponent) (Object) this,
-                blockEntity.getLevel().getGameTime(), cir.getReturnValue())) {
+        if (!InstantaneousPowerTracker.spend(
+                (EnergyComponent) (Object) this, blockEntity.getLevel().getGameTime(), cir.getReturnValue())) {
             throw new IllegalStateException("Transformer fresh-input budget changed during extraction");
         }
     }

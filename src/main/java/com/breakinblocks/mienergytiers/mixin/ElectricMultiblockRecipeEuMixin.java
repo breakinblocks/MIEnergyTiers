@@ -10,8 +10,10 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
-@Mixin({ElectricCraftingMultiblockBlockEntity.class, ElectricBlastFurnaceBlockEntity.class,
-        DistillationTowerBlockEntity.class, FusionReactorBlockEntity.class})
+@Mixin({
+    ElectricCraftingMultiblockBlockEntity.class, ElectricBlastFurnaceBlockEntity.class,
+    DistillationTowerBlockEntity.class, FusionReactorBlockEntity.class
+})
 abstract class ElectricMultiblockRecipeEuMixin {
     @Inject(method = "getMaxRecipeEu", at = @At("HEAD"), cancellable = true)
     private void miEnergyTiers$applyVoltageCap(CallbackInfoReturnable<Long> cir) {

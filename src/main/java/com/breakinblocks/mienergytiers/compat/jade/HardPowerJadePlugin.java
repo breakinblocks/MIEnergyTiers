@@ -36,8 +36,8 @@ public final class HardPowerJadePlugin implements IWailaPlugin {
     }
 
     private static final class InputProvider implements IServerDataProvider<BlockAccessor>, IBlockComponentProvider {
-        private static final ResourceLocation UID = ResourceLocation.fromNamespaceAndPath(
-                MIEnergyTiers.MOD_ID, "power_input");
+        private static final ResourceLocation UID =
+                ResourceLocation.fromNamespaceAndPath(MIEnergyTiers.MOD_ID, "power_input");
         private static final String INPUT_EU = "mi_energy_tiers_input_eu";
 
         @Override
@@ -49,8 +49,11 @@ public final class HardPowerJadePlugin implements IWailaPlugin {
         @Override
         public void appendTooltip(ITooltip tooltip, BlockAccessor accessor, IPluginConfig config) {
             if (!(accessor.getBlockEntity() instanceof HardPowerStateHolder)) return;
-            tooltip.add(Component.translatable("mi_energy_tiers.jade.input",
-                    accessor.getServerData().getLong(INPUT_EU)), UID);
+            tooltip.add(
+                    Component.translatable(
+                            "mi_energy_tiers.jade.input",
+                            accessor.getServerData().getLong(INPUT_EU)),
+                    UID);
         }
 
         @Override

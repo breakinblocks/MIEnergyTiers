@@ -31,17 +31,21 @@ public final class VoltageTooltips {
 
     private static void appendCasing(List<Component> tooltip, CableTier tier) {
         long maxAmps = AmperagePolicy.maxAmps(tier);
-        tooltip.add(Component.translatable("mi_energy_tiers.tooltip.casing.voltage",
-                tier.shortEnglishName(), amount(tier.getEu())).withStyle(ChatFormatting.AQUA));
-        tooltip.add(Component.translatable("mi_energy_tiers.tooltip.casing.recipes",
-                amount(tier.getEu())).withStyle(ChatFormatting.GRAY));
-        tooltip.add(Component.translatable("mi_energy_tiers.tooltip.casing.amps",
-                amount(AmperagePolicy.maxRecipeEu(tier, Long.MAX_VALUE)), maxAmps).withStyle(ChatFormatting.GRAY));
+        tooltip.add(Component.translatable(
+                        "mi_energy_tiers.tooltip.casing.voltage", tier.shortEnglishName(), amount(tier.getEu()))
+                .withStyle(ChatFormatting.AQUA));
+        tooltip.add(Component.translatable("mi_energy_tiers.tooltip.casing.recipes", amount(tier.getEu()))
+                .withStyle(ChatFormatting.GRAY));
+        tooltip.add(Component.translatable(
+                        "mi_energy_tiers.tooltip.casing.amps",
+                        amount(AmperagePolicy.maxRecipeEu(tier, Long.MAX_VALUE)),
+                        maxAmps)
+                .withStyle(ChatFormatting.GRAY));
     }
 
     private static void appendUpgrade(List<Component> tooltip, long upgradeEu) {
-        tooltip.add(Component.translatable("mi_energy_tiers.tooltip.upgrade.amperage",
-                amount(upgradeEu)).withStyle(ChatFormatting.AQUA));
+        tooltip.add(Component.translatable("mi_energy_tiers.tooltip.upgrade.amperage", amount(upgradeEu))
+                .withStyle(ChatFormatting.AQUA));
         if (!Screen.hasShiftDown()) {
             tooltip.add(Component.translatable("mi_energy_tiers.tooltip.shift").withStyle(ChatFormatting.DARK_GRAY));
             return;
@@ -56,17 +60,18 @@ public final class VoltageTooltips {
         long maxAmps = AmperagePolicy.maxAmps(tier);
         long perUpgrade = AmperagePolicy.ampsPerUpgrade(tier, upgradeEu);
         if (perUpgrade >= maxAmps - 1) {
-            return Component.translatable("mi_energy_tiers.tooltip.upgrade.full",
-                    tier.shortEnglishName(), maxAmps).withStyle(ChatFormatting.GRAY);
+            return Component.translatable("mi_energy_tiers.tooltip.upgrade.full", tier.shortEnglishName(), maxAmps)
+                    .withStyle(ChatFormatting.GRAY);
         }
         if (perUpgrade >= 1) {
-            return Component.translatable("mi_energy_tiers.tooltip.upgrade.per_item",
-                    tier.shortEnglishName(), perUpgrade).withStyle(ChatFormatting.GRAY);
+            return Component.translatable(
+                            "mi_energy_tiers.tooltip.upgrade.per_item", tier.shortEnglishName(), perUpgrade)
+                    .withStyle(ChatFormatting.GRAY);
         }
         long needed = AmperagePolicy.upgradesPerAmp(tier, upgradeEu);
         if (needed > 64) return null;
-        return Component.translatable("mi_energy_tiers.tooltip.upgrade.per_amp",
-                tier.shortEnglishName(), needed).withStyle(ChatFormatting.GRAY);
+        return Component.translatable("mi_energy_tiers.tooltip.upgrade.per_amp", tier.shortEnglishName(), needed)
+                .withStyle(ChatFormatting.GRAY);
     }
 
     private static String amount(long value) {

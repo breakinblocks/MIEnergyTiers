@@ -33,7 +33,10 @@ public final class EnergyConverters {
     private static final Map<CableTier, Converter> CONVERTERS = new LinkedHashMap<>();
     private static final ResourceLocation MI_TAB = MI.id("general");
 
-    public record Converter(CableTier tier, DeferredBlock<EnergyConverterBlock> block, DeferredItem<BlockItem> item,
+    public record Converter(
+            CableTier tier,
+            DeferredBlock<EnergyConverterBlock> block,
+            DeferredItem<BlockItem> item,
             DeferredHolder<BlockEntityType<?>, BlockEntityType<EnergyConverterBlockEntity>> type) {}
 
     public static void register(IEventBus modBus) {
@@ -41,11 +44,17 @@ public final class EnergyConverters {
             String name = name(tier);
             DeferredHolder<BlockEntityType<?>, BlockEntityType<EnergyConverterBlockEntity>> type =
                     DeferredHolder.create(Registries.BLOCK_ENTITY_TYPE, id(tier));
-            DeferredBlock<EnergyConverterBlock> block = BLOCKS.register(name, () -> new EnergyConverterBlock(tier, type));
-            DeferredItem<BlockItem> item = ITEMS.register(name, () -> new BlockItem(block.get(), new Item.Properties()));
-            BLOCK_ENTITIES.register(name, () -> BlockEntityType.Builder
-                    .of((pos, state) -> new EnergyConverterBlockEntity(new BEP(type.get(), pos, state), tier), block.get())
-                    .build(null));
+            DeferredBlock<EnergyConverterBlock> block =
+                    BLOCKS.register(name, () -> new EnergyConverterBlock(tier, type));
+            DeferredItem<BlockItem> item =
+                    ITEMS.register(name, () -> new BlockItem(block.get(), new Item.Properties()));
+            BLOCK_ENTITIES.register(
+                    name,
+                    () -> BlockEntityType.Builder.of(
+                                    (pos, state) ->
+                                            new EnergyConverterBlockEntity(new BEP(type.get(), pos, state), tier),
+                                    block.get())
+                            .build(null));
             CONVERTERS.put(tier, new Converter(tier, block, item, type));
         }
         BLOCKS.register(modBus);

@@ -19,8 +19,13 @@ public final class EnergyConverterBlock extends MachineBlock {
     private final CableTier tier;
 
     public EnergyConverterBlock(CableTier tier, Supplier<BlockEntityType<EnergyConverterBlockEntity>> type) {
-        super((pos, state) -> new EnergyConverterBlockEntity(new BEP(type.get(), pos, state), tier),
-                Properties.of().destroyTime(4.0f).explosionResistance(6.0f).sound(SoundType.METAL).noLootTable());
+        super(
+                (pos, state) -> new EnergyConverterBlockEntity(new BEP(type.get(), pos, state), tier),
+                Properties.of()
+                        .destroyTime(4.0f)
+                        .explosionResistance(6.0f)
+                        .sound(SoundType.METAL)
+                        .noLootTable());
         this.tier = tier;
     }
 
@@ -34,13 +39,18 @@ public final class EnergyConverterBlock extends MachineBlock {
     }
 
     @Override
-    public void appendHoverText(ItemStack stack, Item.TooltipContext context, List<Component> tooltip, TooltipFlag flag) {
+    public void appendHoverText(
+            ItemStack stack, Item.TooltipContext context, List<Component> tooltip, TooltipFlag flag) {
         super.appendHoverText(stack, context, tooltip, flag);
-        tooltip.add(Component.translatable("mi_energy_tiers.tooltip.converter.voltage",
-                tier.shortEnglishName(), tier.getEu()).withStyle(ChatFormatting.AQUA));
-        tooltip.add(Component.translatable("mi_energy_tiers.tooltip.converter.amps",
-                EnergyConverterBlockEntity.AMPS, EnergyConverterBlockEntity.maxEuPerTick(tier))
+        tooltip.add(Component.translatable(
+                        "mi_energy_tiers.tooltip.converter.voltage", tier.shortEnglishName(), tier.getEu())
+                .withStyle(ChatFormatting.AQUA));
+        tooltip.add(Component.translatable(
+                        "mi_energy_tiers.tooltip.converter.amps",
+                        EnergyConverterBlockEntity.AMPS,
+                        EnergyConverterBlockEntity.maxEuPerTick(tier))
                 .withStyle(ChatFormatting.GRAY));
-        tooltip.add(Component.translatable("mi_energy_tiers.tooltip.converter.faces").withStyle(ChatFormatting.GRAY));
+        tooltip.add(Component.translatable("mi_energy_tiers.tooltip.converter.faces")
+                .withStyle(ChatFormatting.GRAY));
     }
 }

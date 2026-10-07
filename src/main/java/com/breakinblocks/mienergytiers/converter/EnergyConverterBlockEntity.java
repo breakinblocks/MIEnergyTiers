@@ -39,7 +39,9 @@ public final class EnergyConverterBlockEntity extends MachineBlockEntity
     private long inputThisTick;
 
     public EnergyConverterBlockEntity(BEP bep, CableTier tier) {
-        super(bep, new MachineGuiParameters.Builder(EnergyConverters.id(tier), false).build(),
+        super(
+                bep,
+                new MachineGuiParameters.Builder(EnergyConverters.id(tier), false).build(),
                 OrientationComponent.Params.noFacing(false, false));
         this.tier = tier;
         this.energy = new EnergyComponent(this, capacity(tier));

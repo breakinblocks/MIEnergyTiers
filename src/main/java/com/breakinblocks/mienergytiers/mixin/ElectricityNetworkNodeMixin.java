@@ -15,19 +15,25 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.Level;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
-import org.spongepowered.asm.mixin.injection.Redirect;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
+import org.spongepowered.asm.mixin.injection.Redirect;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 @Mixin(ElectricityNetworkNode.class)
 abstract class ElectricityNetworkNodeMixin {
-    @Shadow private List<Direction> connections;
+    @Shadow
+    private List<Direction> connections;
 
-    @Redirect(method = "canConnect", at = @At(value = "INVOKE",
-            target = "Laztech/modern_industrialization/api/energy/MIEnergyStorage;canConnect(Laztech/modern_industrialization/api/energy/CableTier;)Z"))
-    private boolean miEnergyTiers$allowDestructiveOvervoltageConnection(MIEnergyStorage storage, CableTier offered,
-            Level world, BlockPos cablePos, Direction direction) {
+    @Redirect(
+            method = "canConnect",
+            at =
+                    @At(
+                            value = "INVOKE",
+                            target =
+                                    "Laztech/modern_industrialization/api/energy/MIEnergyStorage;canConnect(Laztech/modern_industrialization/api/energy/CableTier;)Z"))
+    private boolean miEnergyTiers$allowDestructiveOvervoltageConnection(
+            MIEnergyStorage storage, CableTier offered, Level world, BlockPos cablePos, Direction direction) {
         if (world.getBlockEntity(cablePos.relative(direction)) instanceof EnergyConverterBlockEntity converter) {
             return converter.miStorage(direction.getOpposite()).canConnect(offered);
         }
@@ -36,18 +42,19 @@ abstract class ElectricityNetworkNodeMixin {
             return connects;
         }
         var endpoint = world.getBlockEntity(cablePos.relative(direction));
-        return endpoint instanceof CableTierHolder holder
-                && offered.compareTo(holder.getCableTier()) > 0;
+        return endpoint instanceof CableTierHolder holder && offered.compareTo(holder.getCableTier()) > 0;
     }
 
     @Inject(method = "appendAttributes", at = @At("HEAD"))
-    private void miEnergyTiers$detectDeferredOverload(ServerLevel world, BlockPos cablePos,
-            CableTier offered, List<?> storages, CallbackInfo ci) {
+    private void miEnergyTiers$detectDeferredOverload(
+            ServerLevel world, BlockPos cablePos, CableTier offered, List<?> storages, CallbackInfo ci) {
         for (Direction direction : connections) {
             BlockPos endpointPos = cablePos.relative(direction);
             var storage = world.getCapability(EnergyApi.SIDED, endpointPos, direction.getOpposite());
             var endpoint = world.getBlockEntity(endpointPos);
-            if (storage != null && !storage.canConnect(offered) && endpoint instanceof CableTierHolder holder
+            if (storage != null
+                    && !storage.canConnect(offered)
+                    && endpoint instanceof CableTierHolder holder
                     && offered.compareTo(holder.getCableTier()) > 0) {
                 EnergyTransferContext context = EnergyTransferContext.current();
                 if (context != null) {

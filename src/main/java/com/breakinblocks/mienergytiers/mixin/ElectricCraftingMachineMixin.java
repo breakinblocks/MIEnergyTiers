@@ -10,28 +10,36 @@ import aztech.modern_industrialization.machines.recipe.MachineRecipe;
 import aztech.modern_industrialization.util.Simulation;
 import com.breakinblocks.mienergytiers.energy.AmperagePolicy;
 import com.breakinblocks.mienergytiers.energy.TierUtil;
+import com.breakinblocks.mienergytiers.gui.HardPowerGuiComponent;
 import com.breakinblocks.mienergytiers.power.HardPowerError;
 import com.breakinblocks.mienergytiers.power.HardPowerState;
 import com.breakinblocks.mienergytiers.power.HardPowerStateHolder;
-import com.breakinblocks.mienergytiers.power.RecipeVoltagePolicy;
 import com.breakinblocks.mienergytiers.power.InstantaneousPowerTracker;
-import com.breakinblocks.mienergytiers.gui.HardPowerGuiComponent;
+import com.breakinblocks.mienergytiers.power.RecipeVoltagePolicy;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
-import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 @Mixin(ElectricCraftingMachineBlockEntity.class)
 abstract class ElectricCraftingMachineMixin implements HardPowerStateHolder, RecipeVoltagePolicy {
-    @Shadow @Final private EnergyComponent energy;
-    @Shadow @Final private UpgradeComponent upgrades;
-    @Shadow public abstract CableTier getCableTier();
+    @Shadow
+    @Final
+    private EnergyComponent energy;
 
-    @Unique private final HardPowerState miEnergyTiers$powerState = new HardPowerState();
+    @Shadow
+    @Final
+    private UpgradeComponent upgrades;
+
+    @Shadow
+    public abstract CableTier getCableTier();
+
+    @Unique
+    private final HardPowerState miEnergyTiers$powerState = new HardPowerState();
 
     @Override
     public HardPowerState miEnergyTiers$getHardPowerState() {
@@ -45,12 +53,17 @@ abstract class ElectricCraftingMachineMixin implements HardPowerStateHolder, Rec
         int renderX = energyBar == null ? 39 : energyBar.params.renderX();
         int renderY = energyBar == null ? 65 : energyBar.params.renderY();
         if (energyBar != null) machine.guiComponents.unregister(energyBar);
-        ((MachineBlockEntityAccessor) this).miEnergyTiers$registerGuiComponent(
-                new HardPowerGuiComponent(() -> miEnergyTiers$powerState,
+        ((MachineBlockEntityAccessor) this)
+                .miEnergyTiers$registerGuiComponent(new HardPowerGuiComponent(
+                        () -> miEnergyTiers$powerState,
                         machine.getCrafterComponent()::hasActiveRecipe,
-                        () -> machine.getLevel() == null ? 0 : InstantaneousPowerTracker.received(
-                                energy, machine.getLevel().getGameTime()),
-                        renderX, renderY, false));
+                        () -> machine.getLevel() == null
+                                ? 0
+                                : InstantaneousPowerTracker.received(
+                                        energy, machine.getLevel().getGameTime()),
+                        renderX,
+                        renderY,
+                        false));
     }
 
     @Override
@@ -75,11 +88,11 @@ abstract class ElectricCraftingMachineMixin implements HardPowerStateHolder, Rec
     }
 
     @Inject(method = "consumeEu", at = @At("HEAD"), cancellable = true)
-    private void miEnergyTiers$atomicDraw(long requested, Simulation simulation,
-            CallbackInfoReturnable<Long> cir) {
+    private void miEnergyTiers$atomicDraw(long requested, Simulation simulation, CallbackInfoReturnable<Long> cir) {
         CableTier installed = getCableTier();
         CableTier required = miEnergyTiers$recipeTier(requested);
-        long gameTick = ((ElectricCraftingMachineBlockEntity) (Object) this).getLevel().getGameTime();
+        long gameTick =
+                ((ElectricCraftingMachineBlockEntity) (Object) this).getLevel().getGameTime();
         CableTier inputTier = InstantaneousPowerTracker.inputTier(energy, gameTick);
         if (required.compareTo(installed) > 0) {
             if (simulation == Simulation.ACT) {
@@ -95,12 +108,12 @@ abstract class ElectricCraftingMachineMixin implements HardPowerStateHolder, Rec
             return;
         }
 
-        long available = Math.min(energy.consumeEu(draw, Simulation.SIMULATE),
-                InstantaneousPowerTracker.available(energy, gameTick));
+        long available = Math.min(
+                energy.consumeEu(draw, Simulation.SIMULATE), InstantaneousPowerTracker.available(energy, gameTick));
         if (available != draw) {
             if (simulation == Simulation.ACT) {
-                miEnergyTiers$powerState.update(draw, available, required, inputTier,
-                        HardPowerError.INSUFFICIENT_INSTANTANEOUS_POWER);
+                miEnergyTiers$powerState.update(
+                        draw, available, required, inputTier, HardPowerError.INSUFFICIENT_INSTANTANEOUS_POWER);
             }
             cir.setReturnValue(0L);
             return;

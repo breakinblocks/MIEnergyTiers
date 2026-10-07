@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.0.4
+
+### Fixed
+
+- A multiblock with two or more energy hatches on the same cable network could crash the server with "MI hatch energy
+  changed between atomic simulation and commit" when the network supplied less than the recipe needed. Each hatch was
+  being credited the whole network's power while planning the draw. (breakinblocks/MIEnergyTiers#1)
+- The machine screen and Jade showed incoming power multiplied by the number of hatches on one network.
+
 ## 1.0.3
 
 ### Fixed

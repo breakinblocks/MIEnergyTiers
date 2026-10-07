@@ -15,8 +15,8 @@ import snownee.jade.api.view.ViewGroup;
 @Mixin(targets = "aztech.modern_industrialization.compat.jade.server.MachineComponentProvider$Energy", remap = false)
 abstract class JadeEnergyProviderMixin {
     @Inject(method = "getGroups", at = @At("HEAD"), cancellable = true, remap = false)
-    private void miEnergyTiers$hideCraftingBuffer(Accessor<?> accessor,
-            CallbackInfoReturnable<List<ViewGroup<CompoundTag>>> cir) {
+    private void miEnergyTiers$hideCraftingBuffer(
+            Accessor<?> accessor, CallbackInfoReturnable<List<ViewGroup<CompoundTag>>> cir) {
         if (accessor.getTarget() instanceof HardPowerStateHolder) {
             cir.setReturnValue(List.of());
         }

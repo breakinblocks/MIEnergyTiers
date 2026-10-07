@@ -3,15 +3,14 @@ package com.breakinblocks.mienergytiers.energy;
 import aztech.modern_industrialization.api.energy.CableTier;
 import com.breakinblocks.mienergytiers.power.InstantaneousPowerBudget;
 import java.util.ArrayDeque;
-import java.util.LinkedHashSet;
 import java.util.Deque;
+import java.util.LinkedHashSet;
 import java.util.Set;
 import net.minecraft.core.BlockPos;
 import org.jspecify.annotations.Nullable;
 
 public final class EnergyTransferContext {
-    private static final ThreadLocal<Deque<EnergyTransferContext>> CURRENT =
-            ThreadLocal.withInitial(ArrayDeque::new);
+    private static final ThreadLocal<Deque<EnergyTransferContext>> CURRENT = ThreadLocal.withInitial(ArrayDeque::new);
 
     private final CableTier tier;
     private final TransferEndpoint source;
@@ -30,10 +29,21 @@ public final class EnergyTransferContext {
         this.gameTick = gameTick;
     }
 
-    public CableTier tier() { return tier; }
-    public TransferEndpoint source() { return source; }
-    public TransferEndpoint destination() { return destination; }
-    public long gameTick() { return gameTick; }
+    public CableTier tier() {
+        return tier;
+    }
+
+    public TransferEndpoint source() {
+        return source;
+    }
+
+    public TransferEndpoint destination() {
+        return destination;
+    }
+
+    public long gameTick() {
+        return gameTick;
+    }
 
     public synchronized void setFreshAllowance(long amount) {
         freshAllowance = Math.max(0, amount);
@@ -65,10 +75,9 @@ public final class EnergyTransferContext {
         return networkPowerOffered;
     }
 
-    public synchronized void recordOverload(BlockPos cablePosition, BlockPos endpointPosition,
-            CableTier acceptedTier) {
-        overloadCandidates.add(new OverloadCandidate(
-                cablePosition.immutable(), endpointPosition.immutable(), acceptedTier));
+    public synchronized void recordOverload(BlockPos cablePosition, BlockPos endpointPosition, CableTier acceptedTier) {
+        overloadCandidates.add(
+                new OverloadCandidate(cablePosition.immutable(), endpointPosition.immutable(), acceptedTier));
     }
 
     public synchronized Set<OverloadCandidate> overloadCandidates() {

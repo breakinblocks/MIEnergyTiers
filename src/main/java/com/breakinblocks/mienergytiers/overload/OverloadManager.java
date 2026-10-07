@@ -5,8 +5,8 @@ import com.breakinblocks.mienergytiers.MIEnergyTiers;
 import com.breakinblocks.mienergytiers.config.HardEnergyConfig;
 import java.util.Queue;
 import java.util.Set;
-import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentLinkedQueue;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.resources.ResourceKey;
@@ -49,9 +49,16 @@ public final class OverloadManager {
             ServerLevel level = server.getLevel(overload.target.dimension);
             BlockPos position = overload.target.position;
             if (level == null || !level.isLoaded(position)) continue;
-            level.sendParticles(ParticleTypes.LARGE_SMOKE,
-                    position.getX() + 0.5, position.getY() + 0.5,
-                    position.getZ() + 0.5, 12, 0.25, 0.25, 0.25, 0.02);
+            level.sendParticles(
+                    ParticleTypes.LARGE_SMOKE,
+                    position.getX() + 0.5,
+                    position.getY() + 0.5,
+                    position.getZ() + 0.5,
+                    12,
+                    0.25,
+                    0.25,
+                    0.25,
+                    0.02);
             level.playSound(null, position, SoundEvents.GENERIC_EXPLODE.value(), SoundSource.BLOCKS, 0.6f, 1.4f);
             level.destroyBlock(position, true);
         }
@@ -60,7 +67,7 @@ public final class OverloadManager {
     private static void log(ServerLevel level, BlockPos position, CableTier offered, CableTier accepted) {
         String message = "Rejected MI overvoltage in {} at {}: offered {}, accepted {}";
         switch (HardEnergyConfig.DIAGNOSTIC_LEVEL.get()) {
-            case OFF -> { }
+            case OFF -> {}
             case INFO -> MIEnergyTiers.LOGGER.info(message, level.dimension().location(), position, offered, accepted);
             case WARN -> MIEnergyTiers.LOGGER.warn(message, level.dimension().location(), position, offered, accepted);
         }

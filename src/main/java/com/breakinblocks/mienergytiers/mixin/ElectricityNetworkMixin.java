@@ -3,16 +3,16 @@ package com.breakinblocks.mienergytiers.mixin;
 import aztech.modern_industrialization.api.energy.CableTier;
 import aztech.modern_industrialization.api.energy.MIEnergyStorage;
 import aztech.modern_industrialization.pipes.electricity.ElectricityNetwork;
-import com.llamalad7.mixinextras.injector.wrapmethod.WrapMethod;
-import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
 import com.breakinblocks.mienergytiers.energy.EnergyTransferContext;
 import com.breakinblocks.mienergytiers.energy.TransferEndpoint;
-import com.breakinblocks.mienergytiers.power.NetworkPowerPolicy;
 import com.breakinblocks.mienergytiers.overload.OverloadManager;
 import com.breakinblocks.mienergytiers.power.HardPowerError;
 import com.breakinblocks.mienergytiers.power.HardPowerStateHolder;
-import net.minecraft.server.level.ServerLevel;
+import com.breakinblocks.mienergytiers.power.NetworkPowerPolicy;
+import com.llamalad7.mixinextras.injector.wrapmethod.WrapMethod;
+import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
 import java.util.List;
+import net.minecraft.server.level.ServerLevel;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
@@ -21,12 +21,23 @@ import org.spongepowered.asm.mixin.injection.ModifyArg;
 
 @Mixin(ElectricityNetwork.class)
 abstract class ElectricityNetworkMixin {
-    @Shadow @Final private static List<MIEnergyStorage> STORAGES_CACHE;
-    @Shadow @Final private CableTier tier;
+    @Shadow
+    @Final
+    private static List<MIEnergyStorage> STORAGES_CACHE;
 
-    @ModifyArg(method = "tick", at = @At(value = "INVOKE",
-            target = "Laztech/modern_industrialization/pipes/electricity/ElectricityNetwork;transferForTargets(Laztech/modern_industrialization/pipes/electricity/ElectricityNetwork$TransferOperation;Ljava/util/List;J)J",
-            ordinal = 0), index = 2)
+    @Shadow
+    @Final
+    private CableTier tier;
+
+    @ModifyArg(
+            method = "tick",
+            at =
+                    @At(
+                            value = "INVOKE",
+                            target =
+                                    "Laztech/modern_industrialization/pipes/electricity/ElectricityNetwork;transferForTargets(Laztech/modern_industrialization/pipes/electricity/ElectricityNetwork$TransferOperation;Ljava/util/List;J)J",
+                            ordinal = 0),
+            index = 2)
     private long miEnergyTiers$captureNominalSourceThroughput(long maximum) {
         EnergyTransferContext context = EnergyTransferContext.current();
         if (context != null) {
@@ -38,9 +49,15 @@ abstract class ElectricityNetworkMixin {
         return maximum;
     }
 
-    @ModifyArg(method = "tick", at = @At(value = "INVOKE",
-            target = "Laztech/modern_industrialization/pipes/electricity/ElectricityNetwork;transferForTargets(Laztech/modern_industrialization/pipes/electricity/ElectricityNetwork$TransferOperation;Ljava/util/List;J)J",
-            ordinal = 1), index = 2)
+    @ModifyArg(
+            method = "tick",
+            at =
+                    @At(
+                            value = "INVOKE",
+                            target =
+                                    "Laztech/modern_industrialization/pipes/electricity/ElectricityNetwork;transferForTargets(Laztech/modern_industrialization/pipes/electricity/ElectricityNetwork$TransferOperation;Ljava/util/List;J)J",
+                            ordinal = 1),
+            index = 2)
     private long miEnergyTiers$captureOfferedNetworkPower(long maximum) {
         EnergyTransferContext context = EnergyTransferContext.current();
         if (context != null) context.setNetworkPowerOffered(maximum);
@@ -49,9 +66,11 @@ abstract class ElectricityNetworkMixin {
 
     @WrapMethod(method = "tick")
     private void miEnergyTiers$carryNetworkTier(ServerLevel world, Operation<Void> original) {
-        var context = new EnergyTransferContext(tier,
+        var context = new EnergyTransferContext(
+                tier,
                 TransferEndpoint.unknown("MI electricity network"),
-                TransferEndpoint.unknown("MI electricity endpoint"), world.getGameTime());
+                TransferEndpoint.unknown("MI electricity endpoint"),
+                world.getGameTime());
         context.setFreshAllowance(0);
         try (var ignored = EnergyTransferContext.push(context)) {
             original.call(world);
@@ -59,8 +78,9 @@ abstract class ElectricityNetworkMixin {
                 for (EnergyTransferContext.OverloadCandidate candidate : context.overloadCandidates()) {
                     var endpoint = world.getBlockEntity(candidate.endpointPosition());
                     if (endpoint instanceof HardPowerStateHolder stateHolder) {
-                        stateHolder.miEnergyTiers$getHardPowerState().update(
-                                0, 0, null, candidate.acceptedTier(), HardPowerError.OVERVOLTAGE_REJECTED);
+                        stateHolder
+                                .miEnergyTiers$getHardPowerState()
+                                .update(0, 0, null, candidate.acceptedTier(), HardPowerError.OVERVOLTAGE_REJECTED);
                     }
                     // ElectricityNetwork.tick has returned from node iteration; actual block damage
                     // remains queued until the server tick post event.

@@ -1,17 +1,17 @@
 package com.breakinblocks.mienergytiers;
 
-import com.mojang.logging.LogUtils;
 import com.breakinblocks.mienergytiers.config.HardEnergyConfig;
 import com.breakinblocks.mienergytiers.converter.EnergyConverters;
 import com.breakinblocks.mienergytiers.gametest.HardEnergyGameTests;
+import com.breakinblocks.mienergytiers.overload.OverloadManager;
+import com.mojang.logging.LogUtils;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.fml.ModContainer;
 import net.neoforged.fml.common.Mod;
 import net.neoforged.fml.config.ModConfig;
+import net.neoforged.neoforge.common.NeoForge;
 import net.neoforged.neoforge.event.RegisterGameTestsEvent;
 import org.slf4j.Logger;
-import net.neoforged.neoforge.common.NeoForge;
-import com.breakinblocks.mienergytiers.overload.OverloadManager;
 
 @Mod(MIEnergyTiers.MOD_ID)
 public final class MIEnergyTiers {

@@ -18,22 +18,51 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 @Mixin(CrafterComponent.class)
 abstract class CrafterComponentMixin {
-    @Shadow private CrafterComponent.Behavior behavior;
-    @Shadow private RecipeHolder<MachineRecipe> activeRecipe;
-    @Shadow private ResourceLocation delayedActiveRecipe;
-    @Shadow private boolean matchesMultipleRecipes;
-    @Shadow private long usedEnergy;
-    @Shadow private long recipeEnergy;
-    @Shadow private long recipeMaxEu;
-    @Shadow private int efficiencyTicks;
-    @Shadow private int maxEfficiencyTicks;
-    @Shadow private long previousBaseEu;
-    @Shadow private long previousMaxEu;
-    @Shadow protected abstract void clearLocks();
+    @Shadow
+    private CrafterComponent.Behavior behavior;
 
-    @Redirect(method = "updateActiveRecipe", at = @At(value = "INVOKE",
-            target = "Laztech/modern_industrialization/machines/components/CrafterComponent$Behavior;banRecipe(Laztech/modern_industrialization/machines/recipe/MachineRecipe;)Z"))
-    private boolean miEnergyTiers$preserveBansAndCheckVoltage(CrafterComponent.Behavior behavior, MachineRecipe recipe) {
+    @Shadow
+    private RecipeHolder<MachineRecipe> activeRecipe;
+
+    @Shadow
+    private ResourceLocation delayedActiveRecipe;
+
+    @Shadow
+    private boolean matchesMultipleRecipes;
+
+    @Shadow
+    private long usedEnergy;
+
+    @Shadow
+    private long recipeEnergy;
+
+    @Shadow
+    private long recipeMaxEu;
+
+    @Shadow
+    private int efficiencyTicks;
+
+    @Shadow
+    private int maxEfficiencyTicks;
+
+    @Shadow
+    private long previousBaseEu;
+
+    @Shadow
+    private long previousMaxEu;
+
+    @Shadow
+    protected abstract void clearLocks();
+
+    @Redirect(
+            method = "updateActiveRecipe",
+            at =
+                    @At(
+                            value = "INVOKE",
+                            target =
+                                    "Laztech/modern_industrialization/machines/components/CrafterComponent$Behavior;banRecipe(Laztech/modern_industrialization/machines/recipe/MachineRecipe;)Z"))
+    private boolean miEnergyTiers$preserveBansAndCheckVoltage(
+            CrafterComponent.Behavior behavior, MachineRecipe recipe) {
         if (behavior.banRecipe(recipe)) return true;
         return behavior instanceof RecipeVoltagePolicy policy && !policy.miEnergyTiers$isVoltageAllowed(recipe);
     }
@@ -74,7 +103,8 @@ abstract class CrafterComponentMixin {
         // Keep one internal EU as a sentinel so the consumed inputs remain associated with this
         // active craft, while exposing the policy's logical floor as zero progress.
         if (HardEnergyConfig.UNDERPOWER_POLICY.get() == UnderpowerPolicy.DECAY_ONLY
-                && activeRecipe != null && usedEnergy == 1) {
+                && activeRecipe != null
+                && usedEnergy == 1) {
             cir.setReturnValue(0.0F);
         }
     }
