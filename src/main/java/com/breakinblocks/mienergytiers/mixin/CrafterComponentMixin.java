@@ -3,6 +3,7 @@ package com.breakinblocks.mienergytiers.mixin;
 import aztech.modern_industrialization.machines.components.CrafterComponent;
 import aztech.modern_industrialization.machines.recipe.MachineRecipe;
 import com.breakinblocks.mienergytiers.config.HardEnergyConfig;
+import com.breakinblocks.mienergytiers.power.EnergyFreeRecipes;
 import com.breakinblocks.mienergytiers.power.HardPowerError;
 import com.breakinblocks.mienergytiers.power.HardPowerStateHolder;
 import com.breakinblocks.mienergytiers.power.RecipeVoltagePolicy;
@@ -63,6 +64,7 @@ abstract class CrafterComponentMixin {
                                     "Laztech/modern_industrialization/machines/components/CrafterComponent$Behavior;banRecipe(Laztech/modern_industrialization/machines/recipe/MachineRecipe;)Z"))
     private boolean miEnergyTiers$preserveBansAndCheckVoltage(
             CrafterComponent.Behavior behavior, MachineRecipe recipe) {
+        if (EnergyFreeRecipes.isFree(recipe)) return false;
         if (behavior.banRecipe(recipe)) return true;
         return behavior instanceof RecipeVoltagePolicy policy && !policy.miEnergyTiers$isVoltageAllowed(recipe);
     }

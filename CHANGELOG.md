@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.0.5
+
+### Fixed
+
+- Recipes carrying MIEI's `miei:no_energy` condition never started on a multiblock with no energy hatch, because the
+  voltage check and the recipe EU limit both rejected them. They are now exempt from both, since they draw no EU.
+- A converter feeding a machine above its tier logged "Rejected MI overvoltage" every tick. It is now logged at debug
+  level by default, and each position and tier pair at most once every five minutes. `diagnosticLevel` takes a new
+  `DEBUG` value, which is the new default; `INFO` and `WARN` still log at those levels. (FTBTesting/Testing-Issues#4939)
+
 ## 1.0.4
 
 ### Fixed

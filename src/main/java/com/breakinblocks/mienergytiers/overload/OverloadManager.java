@@ -3,6 +3,7 @@ package com.breakinblocks.mienergytiers.overload;
 import aztech.modern_industrialization.api.energy.CableTier;
 import com.breakinblocks.mienergytiers.MIEnergyTiers;
 import com.breakinblocks.mienergytiers.config.HardEnergyConfig;
+import java.util.Map;
 import java.util.Queue;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
@@ -21,6 +22,8 @@ import net.neoforged.neoforge.event.tick.ServerTickEvent;
 public final class OverloadManager {
     private static final Queue<Overload> PENDING = new ConcurrentLinkedQueue<>();
     private static final Set<DamageTarget> PENDING_TARGETS = ConcurrentHashMap.newKeySet();
+    private static final Map<LogKey, Long> LAST_LOGGED = new ConcurrentHashMap<>();
+    private static final long LOG_INTERVAL_TICKS = 6000L;
 
     public enum Outcome {
         REJECTED,
@@ -65,15 +68,28 @@ public final class OverloadManager {
     }
 
     private static void log(ServerLevel level, BlockPos position, CableTier offered, CableTier accepted) {
+        if (HardEnergyConfig.DIAGNOSTIC_LEVEL.get() == HardEnergyConfig.DiagnosticLevel.OFF) return;
+        long now = level.getGameTime();
+        LogKey key = new LogKey(level.dimension(), position.immutable(), offered, accepted);
+        Long last = LAST_LOGGED.get(key);
+        if (last != null && now - last < LOG_INTERVAL_TICKS && now >= last) return;
+        if (LAST_LOGGED.size() > 1024) {
+            LAST_LOGGED.values().removeIf(time -> now - time >= LOG_INTERVAL_TICKS || now < time);
+        }
+        LAST_LOGGED.put(key, now);
         String message = "Rejected MI overvoltage in {} at {}: offered {}, accepted {}";
         switch (HardEnergyConfig.DIAGNOSTIC_LEVEL.get()) {
             case OFF -> {}
+            case DEBUG ->
+                MIEnergyTiers.LOGGER.debug(message, level.dimension().location(), position, offered, accepted);
             case INFO -> MIEnergyTiers.LOGGER.info(message, level.dimension().location(), position, offered, accepted);
             case WARN -> MIEnergyTiers.LOGGER.warn(message, level.dimension().location(), position, offered, accepted);
         }
     }
 
     private record DamageTarget(ResourceKey<Level> dimension, BlockPos position) {}
+
+    private record LogKey(ResourceKey<Level> dimension, BlockPos position, CableTier offered, CableTier accepted) {}
 
     private record Overload(DamageTarget target, CableTier offered, CableTier accepted) {}
 

@@ -14,6 +14,7 @@ import aztech.modern_industrialization.util.Simulation;
 import com.breakinblocks.mienergytiers.energy.AmperagePolicy;
 import com.breakinblocks.mienergytiers.energy.TierUtil;
 import com.breakinblocks.mienergytiers.gui.HardPowerGuiComponent;
+import com.breakinblocks.mienergytiers.power.EnergyFreeRecipes;
 import com.breakinblocks.mienergytiers.power.HardPowerError;
 import com.breakinblocks.mienergytiers.power.HardPowerState;
 import com.breakinblocks.mienergytiers.power.HardPowerStateHolder;
@@ -109,6 +110,9 @@ abstract class AbstractElectricCraftingMultiblockMixin implements HardPowerState
 
     @Override
     public boolean miEnergyTiers$isVoltageAllowed(MachineRecipe recipe) {
+        if (EnergyFreeRecipes.isFree(recipe)) {
+            return true;
+        }
         CableTier required = TierUtil.forEu(recipe.eu);
         TierUtil.HatchRoute route = miEnergyTiers$route(required);
         if (route == null) {

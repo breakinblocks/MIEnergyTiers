@@ -11,6 +11,7 @@ public final class HardEnergyConfig {
 
     public enum DiagnosticLevel {
         OFF,
+        DEBUG,
         INFO,
         WARN
     }
@@ -36,7 +37,7 @@ public final class HardEnergyConfig {
                         "DESTRUCTIVE: permit the mismatched physical connection, cancel EU transfer, then emit smoke/sound and damage the energized overloaded cable or endpoint after network iteration.")
                 .defineEnum("overloadPolicy", OverloadPolicy.REJECT);
         DIAGNOSTIC_LEVEL = builder.comment("Logging level for rejected overvoltage transfers.")
-                .defineEnum("diagnosticLevel", DiagnosticLevel.INFO);
+                .defineEnum("diagnosticLevel", DiagnosticLevel.DEBUG);
         REJECT_UNTYPED_EXTERNAL_INPUT = builder.comment(
                         "Reject FE/GrandPower input without an explicit voltage adapter.")
                 .define("rejectUntypedExternalInput", true);
