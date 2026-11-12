@@ -1,11 +1,8 @@
 package com.breakinblocks.mienergytiers.mixin.tesseract;
 
 import aztech.modern_industrialization.api.energy.CableTier;
-import aztech.modern_industrialization.api.energy.CableTierHolder;
-import aztech.modern_industrialization.api.machine.holder.EnergyComponentHolder;
 import aztech.modern_industrialization.machines.components.EnergyComponent;
 import aztech.modern_industrialization.machines.components.UpgradeComponent;
-import aztech.modern_industrialization.machines.multiblocks.HatchBlockEntity;
 import aztech.modern_industrialization.machines.multiblocks.ShapeMatcher;
 import aztech.modern_industrialization.util.Simulation;
 import com.breakinblocks.mienergytiers.energy.AmperagePolicy;
@@ -16,14 +13,13 @@ import com.breakinblocks.mienergytiers.power.HardPowerError;
 import com.breakinblocks.mienergytiers.power.HardPowerState;
 import com.breakinblocks.mienergytiers.power.HardPowerStateHolder;
 import com.breakinblocks.mienergytiers.power.HatchDrawPlan;
+import com.breakinblocks.mienergytiers.power.HatchTierCache;
 import com.breakinblocks.mienergytiers.power.InstantaneousPowerTracker;
 import com.breakinblocks.mienergytiers.power.TieredEnergyInput;
-import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import net.swedz.tesseract.neoforge.compat.mi.component.craft.multiplied.MultipliedCrafterComponent;
 import net.swedz.tesseract.neoforge.compat.mi.machine.blockentity.multiblock.multiplied.AbstractElectricMultipliedCraftingMultiblockBlockEntity;
-import org.jspecify.annotations.Nullable;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.Unique;
@@ -52,13 +48,7 @@ abstract class ElectricMultipliedCraftingMultiblockMixin implements HardPowerSta
     private final HardPowerState miEnergyTiers$powerState = new HardPowerState();
 
     @Unique
-    private final List<TieredEnergyInput> miEnergyTiers$tieredInputs = new ArrayList<>();
-
-    @Unique
-    private @Nullable CableTier miEnergyTiers$voltage;
-
-    @Unique
-    private long miEnergyTiers$hatchCapacity;
+    private final HatchTierCache miEnergyTiers$hatchCache = new HatchTierCache();
 
     @Override
     public HardPowerState miEnergyTiers$getHardPowerState() {
@@ -67,27 +57,11 @@ abstract class ElectricMultipliedCraftingMultiblockMixin implements HardPowerSta
 
     @Inject(method = "onRematch", at = @At("TAIL"), remap = false)
     private void miEnergyTiers$rebuildHatchTiers(ShapeMatcher matcher, CallbackInfo ci) {
-        miEnergyTiers$tieredInputs.clear();
-        miEnergyTiers$voltage = null;
-        miEnergyTiers$hatchCapacity = 0;
-        if (!matcher.isMatchSuccessful()) return;
-        for (HatchBlockEntity hatch : matcher.getMatchedHatches()) {
-            if (hatch instanceof EnergyComponentHolder energyHolder
-                    && hatch instanceof CableTierHolder tierHolder
-                    && energyHolder.getEnergyComponent() instanceof EnergyComponent component) {
-                if (energyInputs.contains(component)) {
-                    miEnergyTiers$tieredInputs.add(new TieredEnergyInput(component, tierHolder.getCableTier()));
-                }
-            }
+        if (!matcher.isMatchSuccessful()) {
+            miEnergyTiers$hatchCache.clear();
+            return;
         }
-        miEnergyTiers$tieredInputs.sort(Comparator.comparing(TieredEnergyInput::tier));
-
-        List<CableTier> tiers =
-                miEnergyTiers$tieredInputs.stream().map(TieredEnergyInput::tier).toList();
-        miEnergyTiers$voltage = TierUtil.effectiveVoltage(tiers);
-        TierUtil.HatchRoute voltageRoute =
-                miEnergyTiers$voltage == null ? null : TierUtil.hatchRoute(tiers, miEnergyTiers$voltage);
-        miEnergyTiers$hatchCapacity = voltageRoute == null ? 0 : TierUtil.hatchCapacity(tiers, voltageRoute);
+        miEnergyTiers$hatchCache.rebuild(matcher.getMatchedHatches(), energyInputs);
     }
 
     /**
@@ -214,20 +188,22 @@ abstract class ElectricMultipliedCraftingMultiblockMixin implements HardPowerSta
 
     @Unique
     private long miEnergyTiers$cap() {
-        if (miEnergyTiers$voltage == null) return 0;
+        miEnergyTiers$hatchCache.refresh();
+        CableTier voltage = miEnergyTiers$hatchCache.voltage();
+        if (voltage == null) return 0;
         long upgradeEu = upgrades == null ? 0L : upgrades.getAddMaxEUPerTick();
-        return Math.min(AmperagePolicy.maxRecipeEu(miEnergyTiers$voltage, upgradeEu), miEnergyTiers$hatchCapacity);
+        return Math.min(AmperagePolicy.maxRecipeEu(voltage, upgradeEu), miEnergyTiers$hatchCache.capacity());
     }
 
     @Unique
     private TierUtil.HatchRoute miEnergyTiers$route(CableTier required) {
-        return TierUtil.hatchRoute(
-                miEnergyTiers$tieredInputs.stream().map(TieredEnergyInput::tier).toList(), required);
+        miEnergyTiers$hatchCache.refresh();
+        return TierUtil.hatchRoute(miEnergyTiers$hatchCache.tiers(), required);
     }
 
     @Unique
     private List<TieredEnergyInput> miEnergyTiers$routedInputs(TierUtil.HatchRoute route, long gameTick) {
-        List<TieredEnergyInput> routed = miEnergyTiers$tieredInputs.stream()
+        List<TieredEnergyInput> routed = miEnergyTiers$hatchCache.inputs().stream()
                 .filter(input -> input.tier() == route.inputTier())
                 .sorted(Comparator.comparingLong((TieredEnergyInput input) ->
                                 miEnergyTiers$availableFromHatch(input, Long.MAX_VALUE, gameTick))
@@ -250,7 +226,7 @@ abstract class ElectricMultipliedCraftingMultiblockMixin implements HardPowerSta
 
     @Unique
     private CableTier miEnergyTiers$highestTier() {
-        return miEnergyTiers$tieredInputs.stream()
+        return miEnergyTiers$hatchCache.inputs().stream()
                 .map(TieredEnergyInput::tier)
                 .max(Comparator.naturalOrder())
                 .orElse(null);

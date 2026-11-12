@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.0.7
+
+### Fixed
+
+- A multiblock whose energy hatch was swapped for a different tier kept using the old hatch's tier until the
+  controller was broken and replaced, so an MV hatch that replaced an LV one was still treated as LV and capped
+  the machine at the LV draw. Hatch tiers are now read again before every draw.
+
 ## 1.0.6
 
 ### Added
