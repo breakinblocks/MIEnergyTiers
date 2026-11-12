@@ -1,5 +1,23 @@
 # Changelog
 
+## 1.0.6
+
+### Added
+
+- Every electric MI recipe in JEI, EMI and REI shows its voltage tier after the EU/t, colored by tier, and its tooltip
+  names the tier and its EU/t per amp.
+- The power indicator on a machine screen shows the recipe and supply voltage when hovered, not only when something is
+  wrong.
+- Jade shows the supply tier next to a machine's input and the voltage of the recipe it is running.
+
+### Fixed
+
+- A Tesseract batch multiblock, such as the MI Tweaks Large Macerator, stopped for good when a batch needed more EU/t
+  than its cable delivered, since a batch's EU/t is fixed when it starts. It now draws for as many whole recipes of the
+  batch as the fresh power covers and runs slower, so each recipe still gets its full EU/t at its own tier.
+- Tesseract batch multiblocks show the power indicator on their screen, and Jade shows their incoming power instead of
+  0 EU/t.
+
 ## 1.0.5
 
 ### Fixed

@@ -10,6 +10,8 @@ import aztech.modern_industrialization.machines.multiblocks.ShapeMatcher;
 import aztech.modern_industrialization.util.Simulation;
 import com.breakinblocks.mienergytiers.energy.AmperagePolicy;
 import com.breakinblocks.mienergytiers.energy.TierUtil;
+import com.breakinblocks.mienergytiers.gui.HardPowerGuiComponent;
+import com.breakinblocks.mienergytiers.mixin.MachineBlockEntityAccessor;
 import com.breakinblocks.mienergytiers.power.HardPowerError;
 import com.breakinblocks.mienergytiers.power.HardPowerState;
 import com.breakinblocks.mienergytiers.power.HardPowerStateHolder;
@@ -19,6 +21,7 @@ import com.breakinblocks.mienergytiers.power.TieredEnergyInput;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import net.swedz.tesseract.neoforge.compat.mi.component.craft.multiplied.MultipliedCrafterComponent;
 import net.swedz.tesseract.neoforge.compat.mi.machine.blockentity.multiblock.multiplied.AbstractElectricMultipliedCraftingMultiblockBlockEntity;
 import org.jspecify.annotations.Nullable;
 import org.spongepowered.asm.mixin.Mixin;
@@ -143,8 +146,22 @@ abstract class ElectricMultipliedCraftingMultiblockMixin implements HardPowerSta
             return;
         }
 
-        HatchDrawPlan plan = HatchDrawPlan.plan(miEnergyTiers$routedInputs(route, gameTick), draw, gameTick);
+        List<TieredEnergyInput> routed = miEnergyTiers$routedInputs(route, gameTick);
+        HatchDrawPlan plan = HatchDrawPlan.plan(routed, draw, gameTick);
         if (plan.total() != draw) {
+            long unit = miEnergyTiers$batchUnitEu();
+            long partial = unit > 0 && unit < draw ? plan.total() / unit * unit : 0;
+            if (partial > 0) {
+                HatchDrawPlan partialPlan = HatchDrawPlan.plan(routed, partial, gameTick);
+                if (partialPlan.total() == partial) {
+                    if (simulation == Simulation.ACT) {
+                        partialPlan.commit();
+                        miEnergyTiers$powerState.clear(draw, partial, required, route.inputTier());
+                    }
+                    cir.setReturnValue(partial);
+                    return;
+                }
+            }
             if (simulation == Simulation.ACT) {
                 miEnergyTiers$powerState.update(
                         draw,
@@ -162,6 +179,37 @@ abstract class ElectricMultipliedCraftingMultiblockMixin implements HardPowerSta
             miEnergyTiers$powerState.clear(draw, draw, required, route.inputTier());
         }
         cir.setReturnValue(draw);
+    }
+
+    @Unique
+    private long miEnergyTiers$batchUnitEu() {
+        AbstractElectricMultipliedCraftingMultiblockBlockEntity machine =
+                (AbstractElectricMultipliedCraftingMultiblockBlockEntity) (Object) this;
+        if (!(machine.getCrafterComponent() instanceof MultipliedCrafterComponent crafter)
+                || !crafter.hasActiveRecipe()) {
+            return 0;
+        }
+        int multiplier = crafter.getRecipeMultiplier();
+        if (multiplier <= 1) return 0;
+        long unitEu = Math.max(machine.getBaseRecipeEu(), crafter.getBaseRecipeEu());
+        return Math.max(1, crafter.transformEuCost(unitEu, 0) / multiplier);
+    }
+
+    @Inject(method = "<init>", at = @At("TAIL"), remap = false)
+    private void miEnergyTiers$registerPowerGui(CallbackInfo ci) {
+        AbstractElectricMultipliedCraftingMultiblockBlockEntity machine =
+                (AbstractElectricMultipliedCraftingMultiblockBlockEntity) (Object) this;
+        ((MachineBlockEntityAccessor) this)
+                .miEnergyTiers$registerGuiComponent(new HardPowerGuiComponent(
+                        () -> miEnergyTiers$powerState,
+                        machine.getCrafterComponent()::hasActiveRecipe,
+                        () -> machine.getLevel() == null
+                                ? 0
+                                : InstantaneousPowerTracker.received(
+                                        energyInputs, machine.getLevel().getGameTime()),
+                        161,
+                        4,
+                        true));
     }
 
     @Unique

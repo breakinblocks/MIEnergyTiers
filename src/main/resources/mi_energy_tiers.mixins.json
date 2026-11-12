@@ -17,6 +17,9 @@
     "WrappedExternalStorageMixin",
     "tesseract.ElectricMultipliedCraftingMultiblockMixin"
   ],
+  "client": [
+    "client.MachineCategoryMixin"
+  ],
   "injectors": {
     "defaultRequire": 1
   },

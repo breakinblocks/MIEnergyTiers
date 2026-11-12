@@ -4,8 +4,10 @@ import aztech.modern_industrialization.client.machines.gui.ClientComponentRender
 import aztech.modern_industrialization.client.machines.gui.GuiComponentClient;
 import aztech.modern_industrialization.client.machines.gui.MachineScreen;
 import aztech.modern_industrialization.client.machines.guicomponents.EnergyBarClient;
+import com.breakinblocks.mienergytiers.energy.TierDisplay;
 import com.breakinblocks.mienergytiers.gui.HardPowerGuiComponent;
 import com.breakinblocks.mienergytiers.power.HardPowerError;
+import java.util.ArrayList;
 import java.util.List;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.gui.Font;
@@ -45,11 +47,23 @@ public final class HardPowerGuiClient
             int y = top + params.renderY();
             int width = params.compact() ? 10 : 13;
             int height = params.compact() ? 14 : 18;
-            if (data.error() == HardPowerError.NONE
-                    || cursorX < x
-                    || cursorX >= x + width
-                    || cursorY < y
-                    || cursorY >= y + height) return false;
+            if (cursorX < x || cursorX >= x + width || cursorY < y || cursorY >= y + height) return false;
+            List<Component> lines = new ArrayList<>();
+            if (!data.recipeTier().isEmpty()) {
+                lines.add(Component.translatable(
+                                "mi_energy_tiers.power.recipe_voltage", TierDisplay.nameOrRaw(data.recipeTier(), true))
+                        .withStyle(ChatFormatting.GRAY));
+            }
+            if (!data.inputTier().isEmpty()) {
+                lines.add(Component.translatable(
+                                "mi_energy_tiers.power.supply_voltage", TierDisplay.nameOrRaw(data.inputTier(), true))
+                        .withStyle(ChatFormatting.GRAY));
+            }
+            if (data.error() == HardPowerError.NONE) {
+                if (lines.isEmpty()) return false;
+                graphics.renderComponentTooltip(font, lines, cursorX, cursorY);
+                return true;
+            }
             Component line =
                     switch (data.error()) {
                         case INSUFFICIENT_INSTANTANEOUS_POWER ->
@@ -57,12 +71,15 @@ public final class HardPowerGuiClient
                                     "mi_energy_tiers.power.insufficient", data.available(), data.requested());
                         case WRONG_RECIPE_TIER ->
                             Component.translatable(
-                                    "mi_energy_tiers.power.wrong_tier", data.recipeTier(), data.inputTier());
+                                    "mi_energy_tiers.power.wrong_tier",
+                                    TierDisplay.nameOrRaw(data.recipeTier(), true),
+                                    TierDisplay.nameOrRaw(data.inputTier(), true));
                         case INVALID_HATCH_TIER -> Component.translatable("mi_energy_tiers.power.invalid_hatch");
                         case OVERVOLTAGE_REJECTED -> Component.translatable("mi_energy_tiers.power.overvoltage");
                         case NONE -> Component.empty();
                     };
-            graphics.renderComponentTooltip(font, List.of(line.copy().withStyle(ChatFormatting.RED)), cursorX, cursorY);
+            lines.add(line.copy().withStyle(ChatFormatting.RED));
+            graphics.renderComponentTooltip(font, lines, cursorX, cursorY);
             return true;
         }
     }

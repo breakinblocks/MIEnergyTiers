@@ -19,5 +19,10 @@
   "block.mi_energy_tiers.superconductor_fe_converter": "SV FE Converter",
   "mi_energy_tiers.tooltip.converter.voltage": "Converts FE into %s EU (%s EU/t per amp)",
   "mi_energy_tiers.tooltip.converter.amps": "Up to %s amps: %s EU/t",
-  "mi_energy_tiers.tooltip.converter.faces": "Accepts FE on every face except the output face, which carries EU"
+  "mi_energy_tiers.tooltip.converter.faces": "Accepts FE on every face except the output face, which carries EU",
+  "mi_energy_tiers.power.recipe_voltage": "Recipe voltage: %s",
+  "mi_energy_tiers.power.supply_voltage": "Supply voltage: %s",
+  "mi_energy_tiers.jade.input_tier": "Input: %s EU/t (%s)",
+  "mi_energy_tiers.jade.recipe": "Recipe voltage: %s",
+  "mi_energy_tiers.viewer.voltage": "Voltage: %s (%s EU/t per amp)"
 }
