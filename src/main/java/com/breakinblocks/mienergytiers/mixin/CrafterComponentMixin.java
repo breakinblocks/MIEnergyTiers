@@ -66,7 +66,8 @@ abstract class CrafterComponentMixin {
             CrafterComponent.Behavior behavior, MachineRecipe recipe) {
         if (EnergyFreeRecipes.isFree(recipe)) return false;
         if (behavior.banRecipe(recipe)) return true;
-        return behavior instanceof RecipeVoltagePolicy policy && !policy.miEnergyTiers$isVoltageAllowed(recipe);
+        return behavior instanceof RecipeVoltagePolicy policy
+                && (!policy.miEnergyTiers$isVoltageAllowed(recipe) || !policy.miEnergyTiers$hasStartPower(recipe));
     }
 
     @Inject(method = "tickRecipe", at = @At("TAIL"), cancellable = true)

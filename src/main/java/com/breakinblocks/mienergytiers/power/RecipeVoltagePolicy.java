@@ -6,4 +6,6 @@ public interface RecipeVoltagePolicy {
     boolean miEnergyTiers$isVoltageAllowed(MachineRecipe recipe);
 
     long miEnergyTiers$maxRecipeEu();
+
+    boolean miEnergyTiers$hasStartPower(MachineRecipe recipe);
 }

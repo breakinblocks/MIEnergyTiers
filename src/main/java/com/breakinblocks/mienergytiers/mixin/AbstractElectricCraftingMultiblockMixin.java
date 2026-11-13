@@ -85,6 +85,23 @@ abstract class AbstractElectricCraftingMultiblockMixin implements HardPowerState
     }
 
     @Override
+    public boolean miEnergyTiers$hasStartPower(MachineRecipe recipe) {
+        AbstractElectricCraftingMultiblockBlockEntity machine =
+                (AbstractElectricCraftingMultiblockBlockEntity) (Object) this;
+        if (EnergyFreeRecipes.isFree(recipe) || machine.getLevel() == null) return true;
+        long fresh = InstantaneousPowerTracker.received(
+                energyInputs, machine.getLevel().getGameTime());
+        if (fresh >= recipe.eu) return true;
+        miEnergyTiers$powerState.update(
+                recipe.eu,
+                fresh,
+                TierUtil.forEu(recipe.eu),
+                miEnergyTiers$highestTier(),
+                HardPowerError.INSUFFICIENT_INSTANTANEOUS_POWER);
+        return false;
+    }
+
+    @Override
     public boolean miEnergyTiers$isVoltageAllowed(MachineRecipe recipe) {
         if (EnergyFreeRecipes.isFree(recipe)) {
             return true;

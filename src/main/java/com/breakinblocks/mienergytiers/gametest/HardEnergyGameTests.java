@@ -510,6 +510,40 @@ public final class HardEnergyGameTests {
                     "buffered network delivery did not preserve its fresh generation limit");
             check(transfer.claimFresh(128) == 0, "the same fresh network power was credited more than once");
         }));
+        tests.add(asyncTest("underpowered_machine_keeps_its_inputs", helper -> {
+            BlockPos position = new BlockPos(0, 1, 0);
+            helper.setBlock(position, BuiltInRegistries.BLOCK.get(MI.id("electrolyzer")));
+            ElectricCraftingMachineBlockEntity machine = helper.getBlockEntity(position);
+            ItemStack salt = new ItemStack(BuiltInRegistries.ITEM.get(MI.id("salt_dust")), 2);
+            check(
+                    machine.getInventory()
+                            .itemStorage
+                            .itemHandler
+                            .insertItem(0, salt, false)
+                            .isEmpty(),
+                    "could not insert salt into real electrolyzer");
+            check(machine.getEnergyComponent().insertEu(32, Simulation.ACT) > 0, "could not buffer EU in the machine");
+            helper.startSequence()
+                    .thenExecuteFor(10, () -> {
+                        try (var ignored = context(CableTier.LV)) {
+                            machine.getEnergyComponent().insertEu(1, Simulation.ACT);
+                        }
+                    })
+                    .thenExecute(() -> {
+                        check(
+                                !machine.getCrafterComponent().hasActiveRecipe(),
+                                "a recipe started on less fresh power than it draws");
+                        check(
+                                machine.getInventory()
+                                                .itemStorage
+                                                .itemHandler
+                                                .getStackInSlot(0)
+                                                .getCount()
+                                        == 2,
+                                "an underpowered machine consumed its inputs");
+                    })
+                    .thenSucceed();
+        }));
         tests.add(asyncTest("lv_diesel_generator_powers_lv_machine", helper -> {
             BlockPos generatorPos = new BlockPos(0, 1, 0);
             BlockPos cablePos = new BlockPos(1, 1, 0);

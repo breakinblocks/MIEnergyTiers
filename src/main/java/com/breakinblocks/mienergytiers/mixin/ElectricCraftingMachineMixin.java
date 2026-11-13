@@ -82,6 +82,22 @@ abstract class ElectricCraftingMachineMixin implements HardPowerStateHolder, Rec
     }
 
     @Override
+    public boolean miEnergyTiers$hasStartPower(MachineRecipe recipe) {
+        ElectricCraftingMachineBlockEntity machine = (ElectricCraftingMachineBlockEntity) (Object) this;
+        if (EnergyFreeRecipes.isFree(recipe) || machine.getLevel() == null) return true;
+        long fresh =
+                InstantaneousPowerTracker.received(energy, machine.getLevel().getGameTime());
+        if (fresh >= recipe.eu) return true;
+        miEnergyTiers$powerState.update(
+                recipe.eu,
+                fresh,
+                TierUtil.forEu(recipe.eu),
+                getCableTier(),
+                HardPowerError.INSUFFICIENT_INSTANTANEOUS_POWER);
+        return false;
+    }
+
+    @Override
     public long miEnergyTiers$maxRecipeEu() {
         return AmperagePolicy.maxRecipeEu(getCableTier(), upgrades.getAddMaxEUPerTick());
     }

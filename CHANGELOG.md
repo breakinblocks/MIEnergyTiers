@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.0.8
+
+### Fixed
+
+- A machine whose fresh power fell short of a recipe's EU/t still started the recipe and took its inputs, then
+  failed the first draw, dropped the recipe and started it again, using up a set of inputs every tick. A recipe now
+  starts only once at least its EU/t has arrived as fresh power, and the machine shows the shortfall until it does.
+
 ## 1.0.7
 
 ### Fixed
