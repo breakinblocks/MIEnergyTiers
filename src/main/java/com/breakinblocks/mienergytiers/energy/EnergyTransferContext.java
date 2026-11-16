@@ -20,6 +20,7 @@ public final class EnergyTransferContext {
     private long freshAllowance = Long.MAX_VALUE;
     private @Nullable InstantaneousPowerBudget sharedBudget;
     private long networkPowerOffered;
+    private long sourcePower;
     private final Set<OverloadCandidate> overloadCandidates = new LinkedHashSet<>();
 
     public EnergyTransferContext(CableTier tier, TransferEndpoint source, TransferEndpoint destination, long gameTick) {
@@ -65,6 +66,14 @@ public final class EnergyTransferContext {
         long claimed = Math.min(received, freshAllowance);
         freshAllowance -= claimed;
         return claimed;
+    }
+
+    public synchronized void setSourcePower(long amount) {
+        sourcePower = Math.max(0, amount);
+    }
+
+    public synchronized long sourcePower() {
+        return sourcePower;
     }
 
     public synchronized void setNetworkPowerOffered(long amount) {

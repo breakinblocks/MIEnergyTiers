@@ -28,6 +28,7 @@ server.
 - Recipes must fit that voltage. A large internal buffer cannot bypass an LV, MV, or HV requirement.
 - Machine upgrades buy amperage at the machine's own voltage instead of raising the voltage. See the next section.
 - Overclocking is bounded by the same ceiling. A machine speeds up until it draws its full amperage and no further, and it never stalls for asking beyond its tier.
+- Nothing between the generator and the recipe stores power. An idle machine stops accepting EU once it holds one tick of its own draw, an energy input hatch holds only the two amps it can pass in a tick, and a cable takes from its sources only what the machines on it will accept that tick. Jade shows live input on machines and hatches, and shows no stored EU on cables.
 - Multiblocks take voltage and throughput from their energy input hatches. Each hatch supplies up to two amps of its own tier, and 2 to 4 hatches from the tier directly below a recipe may bootstrap the next voltage tier. Promotion cannot cascade across several tiers, and a multiblock never promises more EU/t than its hatches can deliver.
 - Transformers retain their destination voltage classification, while untyped FE/GrandPower input is rejected by default. MI-to-FE export remains available.
 - FE Converters are the one sanctioned way in. There is one per cable tier; it takes FE on every face except its output face and emits EU of its own tier from that face, at most four amps per tick. It connects only to cables and machines of its exact tier.
@@ -72,8 +73,8 @@ Each cable tier gets an `<tier>_fe_converter`. The block is an ordinary MI machi
 | --- | --- | --- |
 | LV | 32 EU/t per amp | 128 EU/t |
 | MV | 128 EU/t per amp | 512 EU/t |
-| HV | 512 EU/t per amp | 2,048 EU/t |
-| EV | 2,048 EU/t per amp | 8,192 EU/t |
+| HV | 1,024 EU/t per amp | 4,096 EU/t |
+| EV | 8,192 EU/t per amp | 32,768 EU/t |
 | Superconductor | 128,000,000 EU/t per amp | 512,000,000 EU/t |
 
 Both intake and output are capped at four amps of the tier per tick, so a converter can never launder buffered FE into a burst. The cable network and direct machine output both count the converter as a four-amp source, where every other source is one amp.

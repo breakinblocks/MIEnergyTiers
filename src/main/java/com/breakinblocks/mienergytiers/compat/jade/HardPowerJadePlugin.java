@@ -8,9 +8,11 @@ import aztech.modern_industrialization.api.machine.holder.EnergyListComponentHol
 import aztech.modern_industrialization.machines.MachineBlock;
 import aztech.modern_industrialization.machines.MachineBlockEntity;
 import aztech.modern_industrialization.machines.blockentities.ElectricCraftingMachineBlockEntity;
+import aztech.modern_industrialization.machines.blockentities.hatches.EnergyHatch;
 import aztech.modern_industrialization.machines.components.EnergyComponent;
 import com.breakinblocks.mienergytiers.MIEnergyTiers;
 import com.breakinblocks.mienergytiers.energy.TierDisplay;
+import com.breakinblocks.mienergytiers.energy.TierUtil;
 import com.breakinblocks.mienergytiers.power.HardPowerStateHolder;
 import com.breakinblocks.mienergytiers.power.InstantaneousPowerTracker;
 import java.util.ArrayList;
@@ -52,6 +54,14 @@ public final class HardPowerJadePlugin implements IWailaPlugin {
 
         @Override
         public void appendServerData(CompoundTag data, BlockAccessor accessor) {
+            if (accessor.getBlockEntity() instanceof EnergyHatch hatch && TierUtil.isEnergyInputHatch(hatch)) {
+                long tick = accessor.getLevel().getGameTime();
+                long hatchInput = InstantaneousPowerTracker.received(hatch.getEnergyComponent(), tick);
+                data.putLong(INPUT_EU, hatchInput);
+                CableTier hatchTier = InstantaneousPowerTracker.inputTier(hatch.getEnergyComponent(), tick);
+                if (hatchInput > 0 && hatchTier != null) data.putString(INPUT_TIER, hatchTier.name);
+                return;
+            }
             if (!(accessor.getBlockEntity() instanceof HardPowerStateHolder holder)) return;
             long received = receivedPower(accessor);
             data.putLong(INPUT_EU, received);
@@ -67,7 +77,8 @@ public final class HardPowerJadePlugin implements IWailaPlugin {
 
         @Override
         public void appendTooltip(ITooltip tooltip, BlockAccessor accessor, IPluginConfig config) {
-            if (!(accessor.getBlockEntity() instanceof HardPowerStateHolder)) return;
+            if (!(accessor.getBlockEntity() instanceof HardPowerStateHolder)
+                    && !TierUtil.isEnergyInputHatch(accessor.getBlockEntity())) return;
             CompoundTag data = accessor.getServerData();
             long input = data.getLong(INPUT_EU);
             String inputTier = data.getString(INPUT_TIER);

@@ -1,5 +1,18 @@
 # Changelog
 
+## 1.0.9
+
+### Changed
+
+- Energy input hatches hold what they can pass in one tick, two amps of their tier, instead of thirty seconds of
+  power. A multiblock now runs on the power that arrives each tick, the same as a single-block machine, and an idle
+  one no longer fills its hatches.
+- A cable network takes from generators and storage only what the machines on it will accept that tick, so cables
+  no longer fill up with stored EU.
+- Jade no longer shows a stored EU bar on cables. It still shows the cable's voltage tier and the EU/t moving
+  through it.
+- Jade shows the live input on an energy input hatch in place of its buffer.
+
 ## 1.0.8
 
 ### Fixed

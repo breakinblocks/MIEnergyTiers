@@ -11,6 +11,7 @@ import com.breakinblocks.mienergytiers.power.HardPowerStateHolder;
 import com.breakinblocks.mienergytiers.power.NetworkPowerPolicy;
 import com.llamalad7.mixinextras.injector.wrapmethod.WrapMethod;
 import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
+import com.llamalad7.mixinextras.sugar.Local;
 import java.util.List;
 import net.minecraft.server.level.ServerLevel;
 import org.spongepowered.asm.mixin.Final;
@@ -38,15 +39,17 @@ abstract class ElectricityNetworkMixin {
                                     "Laztech/modern_industrialization/pipes/electricity/ElectricityNetwork;transferForTargets(Laztech/modern_industrialization/pipes/electricity/ElectricityNetwork$TransferOperation;Ljava/util/List;J)J",
                             ordinal = 0),
             index = 2)
-    private long miEnergyTiers$captureNominalSourceThroughput(long maximum) {
+    private long miEnergyTiers$captureNominalSourceThroughput(long maximum, @Local(ordinal = 0) long networkAmount) {
         EnergyTransferContext context = EnergyTransferContext.current();
-        if (context != null) {
-            // Probe before MI drains source buffers. Each source may contribute at most one
-            // nominal tier packet per tick; cable packet capacity must not turn stored generator
-            // EU into fresh throughput. Multiple real sources may still aggregate normally.
-            context.setFreshAllowance(NetworkPowerPolicy.nominalSourceThroughput(STORAGES_CACHE, tier));
-        }
-        return maximum;
+        if (context == null) return maximum;
+        // Probe before MI drains source buffers. Each source may contribute at most one
+        // nominal tier packet per tick; cable packet capacity must not turn stored generator
+        // EU into fresh throughput. Multiple real sources may still aggregate normally.
+        long sourcePower = NetworkPowerPolicy.nominalSourceThroughput(STORAGES_CACHE, tier);
+        context.setFreshAllowance(sourcePower);
+        context.setSourcePower(sourcePower);
+        long demand = NetworkPowerPolicy.demand(STORAGES_CACHE, tier);
+        return Math.min(maximum, Math.max(0, demand - networkAmount));
     }
 
     @ModifyArg(
@@ -74,7 +77,7 @@ abstract class ElectricityNetworkMixin {
         context.setFreshAllowance(0);
         try (var ignored = EnergyTransferContext.push(context)) {
             original.call(world);
-            if (context.networkPowerOffered() > 0) {
+            if (context.networkPowerOffered() > 0 || context.sourcePower() > 0) {
                 for (EnergyTransferContext.OverloadCandidate candidate : context.overloadCandidates()) {
                     var endpoint = world.getBlockEntity(candidate.endpointPosition());
                     if (endpoint instanceof HardPowerStateHolder stateHolder) {

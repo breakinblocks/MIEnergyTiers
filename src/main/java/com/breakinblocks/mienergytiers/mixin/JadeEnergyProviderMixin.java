@@ -1,5 +1,6 @@
 package com.breakinblocks.mienergytiers.mixin;
 
+import com.breakinblocks.mienergytiers.energy.TierUtil;
 import com.breakinblocks.mienergytiers.power.HardPowerStateHolder;
 import java.util.List;
 import net.minecraft.nbt.CompoundTag;
@@ -17,7 +18,7 @@ abstract class JadeEnergyProviderMixin {
     @Inject(method = "getGroups", at = @At("HEAD"), cancellable = true, remap = false)
     private void miEnergyTiers$hideCraftingBuffer(
             Accessor<?> accessor, CallbackInfoReturnable<List<ViewGroup<CompoundTag>>> cir) {
-        if (accessor.getTarget() instanceof HardPowerStateHolder) {
+        if (accessor.getTarget() instanceof HardPowerStateHolder || TierUtil.isEnergyInputHatch(accessor.getTarget())) {
             cir.setReturnValue(List.of());
         }
     }

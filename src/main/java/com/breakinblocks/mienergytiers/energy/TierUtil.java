@@ -1,6 +1,8 @@
 package com.breakinblocks.mienergytiers.energy;
 
 import aztech.modern_industrialization.api.energy.CableTier;
+import aztech.modern_industrialization.machines.blockentities.hatches.EnergyHatch;
+import aztech.modern_industrialization.machines.multiblocks.HatchTypes;
 import java.util.Collection;
 import java.util.Comparator;
 import java.util.List;
@@ -56,6 +58,10 @@ public final class TierUtil {
         if (hatches <= 0) return 0;
         long perHatch = maxHatchEuPerTick(route.inputTier());
         return perHatch > Long.MAX_VALUE / hatches ? Long.MAX_VALUE : perHatch * hatches;
+    }
+
+    public static boolean isEnergyInputHatch(Object target) {
+        return target instanceof EnergyHatch hatch && hatch.getHatchType() == HatchTypes.ENERGY_INPUT;
     }
 
     public static long maxHatchEuPerTick(CableTier tier) {

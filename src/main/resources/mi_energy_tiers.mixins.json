@@ -12,13 +12,15 @@
     "ElectricityNetworkNodeMixin",
     "EnergyHelperMixin",
     "EnergyComponentMixin",
+    "EnergyHatchMixin",
     "JadeEnergyProviderMixin",
     "MachineBlockEntityAccessor",
     "WrappedExternalStorageMixin",
     "tesseract.ElectricMultipliedCraftingMultiblockMixin"
   ],
   "client": [
-    "client.MachineCategoryMixin"
+    "client.MachineCategoryMixin",
+    "client.PipeComponentProviderMixin"
   ],
   "injectors": {
     "defaultRequire": 1

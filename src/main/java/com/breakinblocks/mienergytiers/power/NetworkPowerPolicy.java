@@ -18,6 +18,17 @@ public final class NetworkPowerPolicy {
         return offered;
     }
 
+    public static long demand(List<MIEnergyStorage> storages, CableTier tier) {
+        long limit = tier.getMaxTransfer();
+        long demand = 0;
+        for (MIEnergyStorage storage : storages) {
+            if (!storage.canReceive()) continue;
+            long accepted = Math.max(0, storage.receive(limit, true));
+            demand = accepted > limit - demand ? limit : demand + accepted;
+        }
+        return demand;
+    }
+
     public static long nominalPacket(CableTier tier, MIEnergyStorage source) {
         long amps = AmperageSource.amperageOf(source);
         long eu = tier.getEu();

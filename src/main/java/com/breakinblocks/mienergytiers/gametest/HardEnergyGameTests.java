@@ -8,6 +8,7 @@ import aztech.modern_industrialization.api.energy.MIEnergyStorage;
 import aztech.modern_industrialization.machines.blockentities.ElectricCraftingMachineBlockEntity;
 import aztech.modern_industrialization.machines.blockentities.GeneratorMachineBlockEntity;
 import aztech.modern_industrialization.machines.blockentities.TransformerMachineBlockEntity;
+import aztech.modern_industrialization.machines.blockentities.hatches.EnergyHatch;
 import aztech.modern_industrialization.machines.blockentities.multiblocks.DistillationTowerBlockEntity;
 import aztech.modern_industrialization.machines.blockentities.multiblocks.ElectricBlastFurnaceBlockEntity;
 import aztech.modern_industrialization.machines.blockentities.multiblocks.ElectricCraftingMultiblockBlockEntity;
@@ -842,6 +843,64 @@ public final class HardEnergyGameTests {
             check(
                     fresh == EnergyConverterBlockEntity.maxEuPerTick(CableTier.LV),
                     "direct output did not arrive as four amps of fresh LV power, got " + fresh);
+        }));
+        tests.add(test("energy_input_hatch_holds_one_tick_of_power", helper -> {
+            BlockPos inputPos = new BlockPos(0, 1, 0);
+            BlockPos outputPos = new BlockPos(2, 1, 0);
+            helper.setBlock(inputPos, BuiltInRegistries.BLOCK.get(MI.id("lv_energy_input_hatch")));
+            helper.setBlock(outputPos, BuiltInRegistries.BLOCK.get(MI.id("lv_energy_output_hatch")));
+            EnergyHatch input = helper.getBlockEntity(inputPos);
+            EnergyHatch output = helper.getBlockEntity(outputPos);
+            long passThrough = TierUtil.maxHatchEuPerTick(CableTier.LV);
+            check(
+                    input.getEnergyComponent().getCapacity() == passThrough,
+                    "an energy input hatch stores more than it can pass in one tick, capacity "
+                            + input.getEnergyComponent().getCapacity());
+            check(
+                    input.getEnergyComponent().insertEu(10 * passThrough, Simulation.ACT) == passThrough,
+                    "an energy input hatch absorbed more than one tick of power");
+            check(output.getEnergyComponent().getCapacity() > passThrough, "an energy output hatch lost its buffer");
+        }));
+        tests.add(test("network_extraction_follows_demand", helper -> {
+            check(
+                    NetworkPowerPolicy.demand(List.of(), CableTier.LV) == 0,
+                    "a network with no receivers reported demand");
+            MIStorage receiver = new MIStorage(0);
+            check(
+                    NetworkPowerPolicy.demand(List.of(receiver, receiver), CableTier.LV)
+                            == CableTier.LV.getMaxTransfer(),
+                    "network demand was not held to what the cable can carry");
+        }));
+        tests.add(asyncTest("cable_without_demand_stores_nothing", helper -> {
+            BlockPos generatorPos = new BlockPos(0, 1, 0);
+            BlockPos cablePos = new BlockPos(1, 1, 0);
+            helper.setBlock(generatorPos, BuiltInRegistries.BLOCK.get(MI.id("lv_diesel_generator")));
+            GeneratorMachineBlockEntity generator = helper.getBlockEntity(generatorPos);
+            generator.orientation.outputDirection = Direction.EAST;
+
+            PipeNetworkType cableType = PipeNetworkType.get(MI.id("copper_cable"));
+            helper.setBlock(cablePos, MIPipes.BLOCK_PIPE.get());
+            PipeBlockEntity cable = helper.getBlockEntity(cablePos);
+            cable.addPipe(cableType, MIPipes.INSTANCE.getPipeItem(cableType).defaultData);
+            helper.getLevel().blockUpdated(helper.absolutePos(cablePos), Blocks.AIR);
+            var player = helper.makeMockPlayer(GameType.SURVIVAL);
+            cable.addConnection(player, cableType, Direction.WEST);
+            ElectricityNetworkNode node = (ElectricityNetworkNode) cable.getNodes().stream()
+                    .filter(candidate -> candidate.getType() == cableType)
+                    .findFirst()
+                    .orElseThrow();
+
+            try (Transaction transaction = Transaction.openRoot()) {
+                generator.getInventory().fluidStorage.insert(MIFluids.BIODIESEL.variant(), 1000, transaction);
+                transaction.commit();
+            }
+            helper.startSequence()
+                    .thenIdle(10)
+                    .thenExecute(() -> check(
+                            node.collectNetworkInfo().stored() == 0,
+                            "a cable with nothing to feed held "
+                                    + node.collectNetworkInfo().stored() + " EU"))
+                    .thenSucceed();
         }));
         return tests;
     }
