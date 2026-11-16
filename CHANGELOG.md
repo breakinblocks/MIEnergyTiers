@@ -1,5 +1,18 @@
 # Changelog
 
+## 1.0.10
+
+### Fixed
+
+- The recipe viewer listed "Requires at least +N EU/t of upgrades" on every recipe above 32 EU/t and showed the
+  upgrade items beside it. That is the stock rule, which this mod replaces: the machine hull or the energy hatches
+  set the voltage, and a recipe runs at one amp with no upgrades. The line and the upgrade items are gone, and the
+  voltage line already there says what the recipe needs.
+
+### Changed
+
+- Built against Modern Industrialization 2.5.12, which is now the minimum, along with NeoForge 21.1.238.
+
 ## 1.0.9
 
 ### Changed

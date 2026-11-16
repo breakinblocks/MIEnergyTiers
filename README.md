@@ -7,8 +7,8 @@ MI Energy Tiers is a NeoForge 1.21.1 addon for Modern Industrialization 2.5.8 or
 | Component | Version |
 | --- | --- |
 | Minecraft | 1.21.1 |
-| NeoForge | 21.1.219 or newer |
-| Modern Industrialization | 2.5.6 |
+| NeoForge | 21.1.238 or newer |
+| Modern Industrialization | 2.5.12 or newer |
 | Grand Power | 3.x |
 
 JEI and Jade are included in the development runtime for recipe and power
@@ -24,7 +24,7 @@ server.
 ## What changes
 
 - Electric recipes draw their complete EU/t atomically. If a machine needs 128 EU/t but receives only 96 EU/t, it consumes nothing and cannot gain normal progress.
-- The casing sets a single-block machine's voltage, and the casing alone is enough: an advanced machine hull runs MV recipes with no upgrades installed. Stock MI ignores the casing here and holds every single-block machine to 32 EU/t plus whatever upgrades are inside it.
+- The casing sets a single-block machine's voltage, and the casing alone is enough: an advanced machine hull runs MV recipes with no upgrades installed. Stock MI ignores the casing here and holds every single-block machine to 32 EU/t plus whatever upgrades are inside it. The recipe viewer shows each recipe's voltage and leaves out stock MI's upgrade requirement.
 - Recipes must fit that voltage. A large internal buffer cannot bypass an LV, MV, or HV requirement.
 - Machine upgrades buy amperage at the machine's own voltage instead of raising the voltage. See the next section.
 - Overclocking is bounded by the same ceiling. A machine speeds up until it draws its full amperage and no further, and it never stalls for asking beyond its tier.
