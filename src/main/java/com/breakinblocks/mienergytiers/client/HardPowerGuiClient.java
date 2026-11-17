@@ -32,7 +32,7 @@ public final class HardPowerGuiClient
             boolean hasEnoughPower = data.error() == HardPowerError.NONE
                     && (data.activeRecipe()
                             ? data.requested() > 0 && data.available() >= data.requested()
-                            : data.inputEuPerTick() > 0);
+                            : data.spareEuPerTick() > 0);
             graphics.pose().pushPose();
             graphics.pose().translate(left + params.renderX(), top + params.renderY(), 0);
             graphics.pose().scale(scale, scale, 1.0F);
@@ -58,6 +58,17 @@ public final class HardPowerGuiClient
                 lines.add(Component.translatable(
                                 "mi_energy_tiers.power.supply_voltage", TierDisplay.nameOrRaw(data.inputTier(), true))
                         .withStyle(ChatFormatting.GRAY));
+            }
+            if (!data.activeRecipe()) {
+                lines.add(
+                        data.inputEuPerTick() > 0
+                                ? Component.translatable(
+                                                "mi_energy_tiers.power.supply",
+                                                data.inputEuPerTick(),
+                                                data.spareEuPerTick())
+                                        .withStyle(data.spareEuPerTick() > 0 ? ChatFormatting.GRAY : ChatFormatting.RED)
+                                : Component.translatable("mi_energy_tiers.power.no_input")
+                                        .withStyle(ChatFormatting.RED));
             }
             if (data.error() == HardPowerError.NONE) {
                 if (lines.isEmpty()) return false;

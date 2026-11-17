@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.0.11
+
+### Changed
+
+- The lightning bolt on an idle machine now lights only when the line has power left over for it. Before, it lit
+  whenever the line carried any power, so a machine waiting behind others that used the whole supply looked ready
+  and gave no reason for sitting idle.
+- Hovering the bolt on an idle machine shows the line's supply and how much of it is not in use, or says that no
+  power is arriving.
+
 ## 1.0.10
 
 ### Fixed

@@ -62,6 +62,10 @@ abstract class ElectricCraftingMachineMixin implements HardPowerStateHolder, Rec
                                 ? 0
                                 : InstantaneousPowerTracker.received(
                                         energy, machine.getLevel().getGameTime()),
+                        () -> machine.getLevel() == null
+                                ? 0
+                                : InstantaneousPowerTracker.available(
+                                        energy, machine.getLevel().getGameTime()),
                         renderX,
                         renderY,
                         false));

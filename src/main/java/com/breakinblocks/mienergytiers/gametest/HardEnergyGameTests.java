@@ -13,6 +13,7 @@ import aztech.modern_industrialization.machines.blockentities.multiblocks.Distil
 import aztech.modern_industrialization.machines.blockentities.multiblocks.ElectricBlastFurnaceBlockEntity;
 import aztech.modern_industrialization.machines.blockentities.multiblocks.ElectricCraftingMultiblockBlockEntity;
 import aztech.modern_industrialization.machines.blockentities.multiblocks.FusionReactorBlockEntity;
+import aztech.modern_industrialization.machines.components.CasingComponent;
 import aztech.modern_industrialization.machines.components.EnergyComponent;
 import aztech.modern_industrialization.machines.guicomponents.EnergyBar;
 import aztech.modern_industrialization.pipes.MIPipes;
@@ -35,6 +36,7 @@ import com.breakinblocks.mienergytiers.gui.HardPowerGuiComponent;
 import com.breakinblocks.mienergytiers.overload.OverloadManager;
 import com.breakinblocks.mienergytiers.power.AmperageSource;
 import com.breakinblocks.mienergytiers.power.HardPowerState;
+import com.breakinblocks.mienergytiers.power.HardPowerStateHolder;
 import com.breakinblocks.mienergytiers.power.HatchDrawPlan;
 import com.breakinblocks.mienergytiers.power.InstantaneousPowerBudget;
 import com.breakinblocks.mienergytiers.power.InstantaneousPowerTracker;
@@ -104,6 +106,12 @@ public final class HardEnergyGameTests {
             check(
                     indicator.extractData().inputEuPerTick() == 32,
                     "connected idle machine did not report incoming power");
+            HardPowerGuiComponent saturated =
+                    new HardPowerGuiComponent(HardPowerState::new, () -> false, () -> 32, () -> 0, 39, 65, false);
+            check(
+                    saturated.extractData().inputEuPerTick() == 32
+                            && saturated.extractData().spareEuPerTick() == 0,
+                    "idle machine on a fully used line did not report zero free power");
         }));
         tests.add(test("progress_resumes_after_full_power", helper -> {
             Ledger ledger = new Ledger(512, 256, 1280);
@@ -633,6 +641,108 @@ public final class HardEnergyGameTests {
                             "full machine buffer deadlocked despite connected LV generation"))
                     .thenSucceed();
         }));
+        tests.add(asyncTest("mv_hull_machine_runs_lv_recipe_on_mv_generation", helper -> {
+            BlockPos generatorPos = new BlockPos(0, 1, 0);
+            BlockPos machinePos = new BlockPos(2, 1, 0);
+            helper.setBlock(generatorPos, BuiltInRegistries.BLOCK.get(MI.id("mv_diesel_generator")));
+            GeneratorMachineBlockEntity generator = helper.getBlockEntity(generatorPos);
+            generator.orientation.outputDirection = Direction.EAST;
+            ElectricCraftingMachineBlockEntity machine = placeMvElectrolyzerWithBauxite(helper, machinePos);
+            placeCable(helper, new BlockPos(1, 1, 0), "cupronickel_cable", Direction.WEST, Direction.EAST);
+            try (Transaction transaction = Transaction.openRoot()) {
+                generator.getInventory().fluidStorage.insert(MIFluids.BIODIESEL.variant(), 4000, transaction);
+                transaction.commit();
+            }
+            expectSteadyProgress(helper, machine, "MV generator, MV cable, MV-hull electrolyzer");
+        }));
+        tests.add(asyncTest("lv_generation_through_transformer_runs_mv_hull_machine", helper -> {
+            BlockPos generatorPos = new BlockPos(0, 1, 0);
+            BlockPos transformerPos = new BlockPos(2, 1, 0);
+            BlockPos machinePos = new BlockPos(1, 2, 0);
+            helper.setBlock(generatorPos, BuiltInRegistries.BLOCK.get(MI.id("lv_diesel_generator")));
+            helper.setBlock(transformerPos, BuiltInRegistries.BLOCK.get(MI.id("lv_mv_transformer")));
+            GeneratorMachineBlockEntity generator = helper.getBlockEntity(generatorPos);
+            generator.orientation.outputDirection = Direction.EAST;
+            TransformerMachineBlockEntity transformer = helper.getBlockEntity(transformerPos);
+            transformer.orientation.outputDirection = Direction.UP;
+            ElectricCraftingMachineBlockEntity machine = placeMvElectrolyzerWithBauxite(helper, machinePos);
+            placeCable(helper, new BlockPos(1, 1, 0), "copper_cable", Direction.WEST, Direction.EAST);
+            placeCable(helper, new BlockPos(2, 2, 0), "cupronickel_cable", Direction.DOWN, Direction.WEST);
+            try (Transaction transaction = Transaction.openRoot()) {
+                generator.getInventory().fluidStorage.insert(MIFluids.BIODIESEL.variant(), 4000, transaction);
+                transaction.commit();
+            }
+            expectSteadyProgress(helper, machine, "LV generator, LV to MV transformer, MV-hull electrolyzer");
+        }));
+        tests.add(asyncTest("second_machine_waits_when_the_line_is_fully_used", helper -> {
+            BlockPos generatorPos = new BlockPos(0, 1, 0);
+            helper.setBlock(generatorPos, BuiltInRegistries.BLOCK.get(MI.id("lv_diesel_generator")));
+            GeneratorMachineBlockEntity generator = helper.getBlockEntity(generatorPos);
+            generator.orientation.outputDirection = Direction.EAST;
+            List<ElectricCraftingMachineBlockEntity> machines = new ArrayList<>();
+            for (BlockPos pos : List.of(new BlockPos(2, 1, 0), new BlockPos(1, 2, 0))) {
+                helper.setBlock(pos, BuiltInRegistries.BLOCK.get(MI.id("electrolyzer")));
+                ElectricCraftingMachineBlockEntity machine = helper.getBlockEntity(pos);
+                ItemStack bauxite = new ItemStack(BuiltInRegistries.ITEM.get(MI.id("bauxite_dust")), 20);
+                check(
+                        machine.getInventory()
+                                .itemStorage
+                                .itemHandler
+                                .insertItem(0, bauxite, false)
+                                .isEmpty(),
+                        "could not insert bauxite dust into the electrolyzer");
+                machines.add(machine);
+            }
+            placeCable(helper, new BlockPos(1, 1, 0), "copper_cable", Direction.WEST, Direction.EAST, Direction.UP);
+            try (Transaction transaction = Transaction.openRoot()) {
+                generator.getInventory().fluidStorage.insert(MIFluids.BIODIESEL.variant(), 4000, transaction);
+                transaction.commit();
+            }
+            helper.startSequence()
+                    .thenIdle(30)
+                    .thenExecute(() -> {
+                        long running = machines.stream()
+                                .filter(machine -> machine.getCrafterComponent().hasActiveRecipe())
+                                .count();
+                        long untouched = machines.stream()
+                                .filter(machine -> machine.getInventory()
+                                                .itemStorage
+                                                .itemHandler
+                                                .getStackInSlot(0)
+                                                .getCount()
+                                        == 20)
+                                .count();
+                        StringBuilder detail = new StringBuilder();
+                        for (ElectricCraftingMachineBlockEntity machine : machines) {
+                            detail.append(" [active=")
+                                    .append(machine.getCrafterComponent().hasActiveRecipe())
+                                    .append(" progress=")
+                                    .append(machine.getCrafterComponent().getProgress())
+                                    .append(" inputs=")
+                                    .append(machine.getInventory()
+                                            .itemStorage
+                                            .itemHandler
+                                            .getStackInSlot(0)
+                                            .getCount())
+                                    .append(" state=")
+                                    .append(((HardPowerStateHolder) machine)
+                                            .miEnergyTiers$getHardPowerState()
+                                            .error())
+                                    .append("]");
+                        }
+                        check(
+                                running == 1 && untouched == 1,
+                                "two 32 EU/t machines on one 32 EU/t generator:" + detail);
+                        ElectricCraftingMachineBlockEntity active = machines.stream()
+                                .filter(machine -> machine.getCrafterComponent().hasActiveRecipe())
+                                .findFirst()
+                                .orElseThrow();
+                        check(
+                                active.getCrafterComponent().getProgress() > 0.015F,
+                                "the running machine was starved by the waiting one:" + detail);
+                    })
+                    .thenSucceed();
+        }));
         tests.add(longAsyncTest("idle_neighbours_do_not_starve_a_running_machine", helper -> {
             BlockPos generatorPos = new BlockPos(0, 1, 0);
             BlockPos cablePos = new BlockPos(1, 1, 0);
@@ -912,6 +1022,67 @@ public final class HardEnergyGameTests {
         EnergyConverterBlockEntity blockEntity = helper.getBlockEntity(pos);
         blockEntity.orientation.outputDirection = Direction.EAST;
         return blockEntity;
+    }
+
+    private static ElectricCraftingMachineBlockEntity placeMvElectrolyzerWithBauxite(
+            GameTestHelper helper, BlockPos pos) {
+        helper.setBlock(pos, BuiltInRegistries.BLOCK.get(MI.id("electrolyzer")));
+        ElectricCraftingMachineBlockEntity machine = helper.getBlockEntity(pos);
+        machine.components
+                .getOrThrow(CasingComponent.class)
+                .setCasingServer(machine, new ItemStack(BuiltInRegistries.ITEM.get(MI.id("advanced_machine_hull"))));
+        check(machine.getCableTier() == CableTier.MV, "advanced machine hull did not make the electrolyzer MV");
+        ItemStack bauxite = new ItemStack(BuiltInRegistries.ITEM.get(MI.id("bauxite_dust")), 20);
+        check(
+                machine.getInventory()
+                        .itemStorage
+                        .itemHandler
+                        .insertItem(0, bauxite, false)
+                        .isEmpty(),
+                "could not insert bauxite dust into the electrolyzer");
+        return machine;
+    }
+
+    private static void placeCable(GameTestHelper helper, BlockPos pos, String cableId, Direction... sides) {
+        PipeNetworkType cableType = PipeNetworkType.get(MI.id(cableId));
+        helper.setBlock(pos, MIPipes.BLOCK_PIPE.get());
+        PipeBlockEntity cable = helper.getBlockEntity(pos);
+        cable.addPipe(cableType, MIPipes.INSTANCE.getPipeItem(cableType).defaultData);
+        helper.getLevel().blockUpdated(helper.absolutePos(pos), Blocks.AIR);
+        var player = helper.makeMockPlayer(GameType.SURVIVAL);
+        for (Direction side : sides) {
+            cable.addConnection(player, cableType, side);
+        }
+    }
+
+    private static void expectSteadyProgress(
+            GameTestHelper helper, ElectricCraftingMachineBlockEntity machine, String setup) {
+        float[] early = new float[1];
+        helper.startSequence()
+                .thenIdle(10)
+                .thenExecute(() -> {
+                    check(
+                            machine.getCrafterComponent().hasActiveRecipe(),
+                            setup + ": recipe never started, stored EU "
+                                    + machine.getEnergyComponent().getEu() + ", fresh input "
+                                    + InstantaneousPowerTracker.received(
+                                            machine.getEnergyComponent(),
+                                            helper.getLevel().getGameTime())
+                                    + ", state "
+                                    + ((HardPowerStateHolder) machine)
+                                            .miEnergyTiers$getHardPowerState()
+                                            .error());
+                    early[0] = machine.getCrafterComponent().getProgress();
+                    check(early[0] > 0, setup + ": recipe started but made no progress");
+                })
+                .thenIdle(20)
+                .thenExecute(() -> check(
+                        machine.getCrafterComponent().getProgress() > early[0],
+                        setup + ": progress stopped at " + early[0] + ", state "
+                                + ((HardPowerStateHolder) machine)
+                                        .miEnergyTiers$getHardPowerState()
+                                        .error()))
+                .thenSucceed();
     }
 
     private static TestFunction test(String name, Consumer<GameTestHelper> body) {

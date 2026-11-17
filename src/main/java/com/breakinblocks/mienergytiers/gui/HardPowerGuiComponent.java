@@ -22,6 +22,7 @@ public final class HardPowerGuiComponent
     private final Supplier<HardPowerState> state;
     private final BooleanSupplier activeRecipe;
     private final LongSupplier inputEuPerTick;
+    private final LongSupplier spareEuPerTick;
     private final Params params;
 
     public HardPowerGuiComponent(Supplier<HardPowerState> state, int renderX, int renderY) {
@@ -35,9 +36,21 @@ public final class HardPowerGuiComponent
             int renderX,
             int renderY,
             boolean compact) {
+        this(state, activeRecipe, inputEuPerTick, inputEuPerTick, renderX, renderY, compact);
+    }
+
+    public HardPowerGuiComponent(
+            Supplier<HardPowerState> state,
+            BooleanSupplier activeRecipe,
+            LongSupplier inputEuPerTick,
+            LongSupplier spareEuPerTick,
+            int renderX,
+            int renderY,
+            boolean compact) {
         this.state = state;
         this.activeRecipe = activeRecipe;
         this.inputEuPerTick = inputEuPerTick;
+        this.spareEuPerTick = spareEuPerTick;
         this.params = new Params(renderX, renderY, compact);
     }
 
@@ -53,6 +66,7 @@ public final class HardPowerGuiComponent
                 value.requestedEuPerTick(),
                 value.availableEuPerTick(),
                 inputEuPerTick.getAsLong(),
+                spareEuPerTick.getAsLong(),
                 activeRecipe.getAsBoolean(),
                 value.recipeTier() == null ? "" : value.recipeTier().name,
                 value.inputTier() == null ? "" : value.inputTier().name,
@@ -87,6 +101,7 @@ public final class HardPowerGuiComponent
             long requested,
             long available,
             long inputEuPerTick,
+            long spareEuPerTick,
             boolean activeRecipe,
             String recipeTier,
             String inputTier,
@@ -95,6 +110,7 @@ public final class HardPowerGuiComponent
             @Override
             public Data decode(ByteBuf buffer) {
                 return new Data(
+                        ByteBufCodecs.VAR_LONG.decode(buffer),
                         ByteBufCodecs.VAR_LONG.decode(buffer),
                         ByteBufCodecs.VAR_LONG.decode(buffer),
                         ByteBufCodecs.VAR_LONG.decode(buffer),
@@ -109,6 +125,7 @@ public final class HardPowerGuiComponent
                 ByteBufCodecs.VAR_LONG.encode(buffer, value.requested);
                 ByteBufCodecs.VAR_LONG.encode(buffer, value.available);
                 ByteBufCodecs.VAR_LONG.encode(buffer, value.inputEuPerTick);
+                ByteBufCodecs.VAR_LONG.encode(buffer, value.spareEuPerTick);
                 ByteBufCodecs.BOOL.encode(buffer, value.activeRecipe);
                 ByteBufCodecs.STRING_UTF8.encode(buffer, value.recipeTier);
                 ByteBufCodecs.STRING_UTF8.encode(buffer, value.inputTier);

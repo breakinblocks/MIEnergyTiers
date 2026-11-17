@@ -20,6 +20,8 @@
   "mi_energy_tiers.tooltip.converter.voltage": "Converts FE into %s EU (%s EU/t per amp)",
   "mi_energy_tiers.tooltip.converter.amps": "Up to %s amps: %s EU/t",
   "mi_energy_tiers.tooltip.converter.faces": "Accepts FE on every face except the output face, which carries EU",
+  "mi_energy_tiers.power.supply": "Network supply: %s EU/t, %s EU/t not in use",
+  "mi_energy_tiers.power.no_input": "No power is arriving",
   "mi_energy_tiers.power.recipe_voltage": "Recipe voltage: %s",
   "mi_energy_tiers.power.supply_voltage": "Supply voltage: %s",
   "mi_energy_tiers.jade.input_tier": "Input: %s EU/t (%s)",
