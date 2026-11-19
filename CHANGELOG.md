@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.0.12
+
+### Fixed
+
+- A machine whose overclock asked for more EU/t than its line supplied ate a set of inputs every tick and made no
+  progress, so a run of crafts lost most of its items. The overclock now runs on the power that arrives, as long as
+  that covers the recipe's own EU/t, and settles back to what the line can keep up with.
+
 ## 1.0.11
 
 ### Changed

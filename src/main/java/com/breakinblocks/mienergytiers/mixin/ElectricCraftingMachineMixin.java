@@ -134,6 +134,21 @@ abstract class ElectricCraftingMachineMixin implements HardPowerStateHolder, Rec
 
         long available = Math.min(
                 energy.consumeEu(draw, Simulation.SIMULATE), InstantaneousPowerTracker.available(energy, gameTick));
+        long floor = miEnergyTiers$recipeFloor(draw);
+        if (available < draw && available >= floor) {
+            if (simulation == Simulation.ACT) {
+                if (!InstantaneousPowerTracker.spend(energy, gameTick, available)) {
+                    throw new IllegalStateException(
+                            "Instantaneous MI power budget changed between simulation and commit");
+                }
+                if (energy.consumeEu(available, Simulation.ACT) != available) {
+                    throw new IllegalStateException("MI energy storage changed between atomic simulation and commit");
+                }
+                miEnergyTiers$powerState.clear(draw, available, required, inputTier);
+            }
+            cir.setReturnValue(available);
+            return;
+        }
         if (available != draw) {
             if (simulation == Simulation.ACT) {
                 miEnergyTiers$powerState.update(
@@ -154,6 +169,14 @@ abstract class ElectricCraftingMachineMixin implements HardPowerStateHolder, Rec
             miEnergyTiers$powerState.clear(draw, draw, required, inputTier);
         }
         cir.setReturnValue(draw);
+    }
+
+    @Unique
+    private long miEnergyTiers$recipeFloor(long draw) {
+        CrafterComponent crafter = ((ElectricCraftingMachineBlockEntity) (Object) this).getCrafterComponent();
+        if (!crafter.hasActiveRecipe()) return draw;
+        long base = crafter.getBaseRecipeEu();
+        return base > 0 && base < draw ? base : draw;
     }
 
     @Unique

@@ -139,7 +139,21 @@ abstract class AbstractElectricCraftingMultiblockMixin implements HardPowerState
             return;
         }
 
-        HatchDrawPlan plan = HatchDrawPlan.plan(miEnergyTiers$routedInputs(route, gameTick), draw, gameTick);
+        List<TieredEnergyInput> routed = miEnergyTiers$routedInputs(route, gameTick);
+        HatchDrawPlan plan = HatchDrawPlan.plan(routed, draw, gameTick);
+        long floor = miEnergyTiers$recipeFloor(draw);
+        if (plan.total() < draw && plan.total() >= floor) {
+            long throttled = plan.total();
+            HatchDrawPlan throttledPlan = HatchDrawPlan.plan(routed, throttled, gameTick);
+            if (throttledPlan.total() == throttled) {
+                if (simulation == Simulation.ACT) {
+                    throttledPlan.commit();
+                    miEnergyTiers$powerState.clear(draw, throttled, required, route.inputTier());
+                }
+                cir.setReturnValue(throttled);
+                return;
+            }
+        }
         if (plan.total() != draw) {
             if (simulation == Simulation.ACT) {
                 miEnergyTiers$powerState.update(
@@ -158,6 +172,15 @@ abstract class AbstractElectricCraftingMultiblockMixin implements HardPowerState
             miEnergyTiers$powerState.clear(draw, draw, required, route.inputTier());
         }
         cir.setReturnValue(draw);
+    }
+
+    @Unique
+    private long miEnergyTiers$recipeFloor(long draw) {
+        CrafterComponent crafter =
+                ((AbstractElectricCraftingMultiblockBlockEntity) (Object) this).getCrafterComponent();
+        if (!crafter.hasActiveRecipe()) return draw;
+        long base = crafter.getBaseRecipeEu();
+        return base > 0 && base < draw ? base : draw;
     }
 
     @Unique

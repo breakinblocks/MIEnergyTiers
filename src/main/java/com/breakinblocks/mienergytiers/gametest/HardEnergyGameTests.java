@@ -553,6 +553,49 @@ public final class HardEnergyGameTests {
                     })
                     .thenSucceed();
         }));
+        tests.add(asyncTest("overclock_short_of_power_keeps_inputs", helper -> {
+            BlockPos position = new BlockPos(0, 1, 0);
+            helper.setBlock(position, BuiltInRegistries.BLOCK.get(MI.id("electrolyzer")));
+            ElectricCraftingMachineBlockEntity machine = helper.getBlockEntity(position);
+            ItemStack salt = new ItemStack(BuiltInRegistries.ITEM.get(MI.id("salt_dust")), 6);
+            check(
+                    machine.getInventory()
+                            .itemStorage
+                            .itemHandler
+                            .insertItem(0, salt, false)
+                            .isEmpty(),
+                    "could not insert salt into real electrolyzer");
+            setField(
+                    machine.getCrafterComponent(),
+                    "activeRecipe",
+                    helper.getLevel()
+                            .getRecipeManager()
+                            .byKey(MI.id("materials/electrolyzer/salt_electrolysis"))
+                            .orElseThrow());
+            setField(machine.getCrafterComponent(), "efficiencyTicks", 600);
+            setField(machine.getCrafterComponent(), "maxEfficiencyTicks", 600);
+            helper.startSequence()
+                    .thenExecuteFor(10, () -> {
+                        try (var ignored = context(CableTier.LV)) {
+                            machine.getEnergyComponent().insertEu(8, Simulation.ACT);
+                        }
+                    })
+                    .thenExecute(() -> {
+                        int left = machine.getInventory()
+                                .itemStorage
+                                .itemHandler
+                                .getStackInSlot(0)
+                                .getCount();
+                        check(
+                                left == 4,
+                                "an overclock beyond the supplied power consumed extra inputs, salt left=" + left);
+                        check(
+                                machine.getCrafterComponent().hasActiveRecipe()
+                                        && machine.getCrafterComponent().getProgress() > 0,
+                                "the recipe made no progress on enough power for its base EU/t");
+                    })
+                    .thenSucceed();
+        }));
         tests.add(asyncTest("lv_diesel_generator_powers_lv_machine", helper -> {
             BlockPos generatorPos = new BlockPos(0, 1, 0);
             BlockPos cablePos = new BlockPos(1, 1, 0);
@@ -1142,6 +1185,16 @@ public final class HardEnergyGameTests {
                 1,
                 false,
                 body);
+    }
+
+    private static void setField(Object target, String name, Object value) {
+        try {
+            java.lang.reflect.Field field = target.getClass().getDeclaredField(name);
+            field.setAccessible(true);
+            field.set(target, value);
+        } catch (ReflectiveOperationException exception) {
+            throw new AssertionError("could not set " + name, exception);
+        }
     }
 
     private static EnergyTransferContext.Scope context(CableTier tier) {
